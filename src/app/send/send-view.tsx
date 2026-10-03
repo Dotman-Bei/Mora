@@ -211,7 +211,17 @@ export function SendView() {
   }
 
   if (stage === "done" && wallet.address) {
-    return <Results rows={results} asset={asset} from={wallet.address} error={error} onAgain={reset} refundAfter={review?.refundAfter} />;
+    return (
+      <Results
+        rows={results}
+        asset={asset}
+        from={wallet.address}
+        error={error}
+        onAgain={reset}
+        refundAfter={review?.refundAfter}
+        readiness={ready instanceof Map ? ready : undefined}
+      />
+    );
   }
 
   return (
@@ -460,6 +470,7 @@ function Results({
   error,
   onAgain,
   refundAfter,
+  readiness,
 }: {
   rows: ResultRow[];
   asset: MoraAsset;
@@ -467,6 +478,7 @@ function Results({
   error: string | null;
   onAgain: () => void;
   refundAfter?: number;
+  readiness?: Map<string, Readiness>;
 }) {
   const { net } = useNetwork();
   const delivered = rows.filter((r) => r.outcome === "delivered").length;
@@ -508,7 +520,7 @@ function Results({
               {r.outcome === "not-sent" ? (
                 <p className="text-sm text-muted-foreground">Not sent</p>
               ) : (
-                <StatusMark status={r.outcome} reason={r.outcome === "waiting" && r.code !== undefined ? waitingReason(r.code, asset.code) : undefined} />
+                <StatusMark status={r.outcome} reason={r.outcome === "waiting" ? reasonFor(r.code, readiness?.get(r.to), asset.code) : undefined} />
               )}
               {r.outcome === "waiting" ? <ShareActions url={link} message={`A ${asset.code} payment is waiting for you on Mora.`} /> : null}
             </li>
@@ -524,4 +536,16 @@ function Results({
       </Button>
     </div>
   );
+}
+
+/**
+ * For credit assets the contract reports a missing account as a missing
+ * trustline (DECISIONS D-002), so prefer what the preview read from the
+ * recipient's account.
+ */
+function reasonFor(code: number | undefined, r: Readiness | undefined, assetCode: string): string | undefined {
+  if (r === "wait-not-active") return "account not active";
+  if (r === "wait-needs-approval") return "needs issuer approval";
+  if (r === "wait-limit") return `${assetCode} limit too low`;
+  return code !== undefined ? waitingReason(code, assetCode) : undefined;
 }
