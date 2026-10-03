@@ -22,12 +22,12 @@
   --border: 45, 5%, 85%;
   --input: 240, 5.9%, 90%;
   --ring: 240, 5.9%, 10%;
-  --destructive: 0, 72%, 45%;
+  --destructive: 0, 72%, 40%;
 
   /* Status marks: the only colour, and it lives inside product UI (DECISIONS D-007). */
-  --status-delivered: 145, 55%, 30%;
-  --status-waiting: 32, 90%, 35%;
-  --status-returned: 215, 25%, 42%;
+  --status-delivered: 145, 55%, 25%;
+  --status-waiting: 32, 90%, 28%;
+  --status-returned: 215, 25%, 38%;
 }
 
 .dark {
