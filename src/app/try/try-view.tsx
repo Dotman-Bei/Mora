@@ -1,6 +1,6 @@
 "use client";
 
-import { Asset, Keypair, Operation, TransactionBuilder, BASE_FEE } from "@stellar/stellar-sdk";
+import { Address, Asset, BASE_FEE, Contract, Keypair, nativeToScVal, Operation, rpc, TransactionBuilder, xdr } from "@stellar/stellar-sdk";
 import { basicNodeSigner } from "@stellar/stellar-sdk/contract";
 import {
   buildClaim,
@@ -112,7 +112,35 @@ export function TryView() {
       add({ text: `You claimed ${formatAmount(out.amount)} TESTUSD with one signature${out.trustlineCreated ? ". TESTUSD was added to your account in the same transaction" : ""}.`, status: "claimed", hash: sentHash(sent) });
     });
 
-  // Step 2: pay three demo recipients, two of them not ready.
+  // Step 2: the same payout without Mora (demo-only baseline-payout contract,
+  // PRD §10.2): plain SAC transfers, so one unready recipient fails the run.
+  const withoutMora = () =>
+    run(async () => {
+      const k = keys!;
+      const payees = xdr.ScVal.scvVec(
+        [k.ready, k.noTrust, k.inactive].map((kp) =>
+          nativeToScVal(
+            { amount: nativeToScVal(DEMO_AMOUNT, { type: "i128" }), to: Address.fromString(kp.publicKey()) },
+            { type: { amount: ["symbol", null], to: ["symbol", null] } },
+          ),
+        ),
+      );
+      const op = new Contract(testnetExtras.baselinePayout.contractId).call(
+        "pay_all",
+        Address.fromString(k.you.publicKey()).toScVal(),
+        Address.fromString(testusd.sac).toScVal(),
+        payees,
+      );
+      const sim = await pool.call(async (s) => {
+        const acct = await s.getAccount(k.you.publicKey());
+        const tx = new TransactionBuilder(acct, { fee: BASE_FEE, networkPassphrase: net.passphrase }).addOperation(op).setTimeout(60).build();
+        return s.simulateTransaction(tx);
+      });
+      if (!rpc.Api.isSimulationError(sim)) throw new Error("Expected the plain payout to fail, and it didn't.");
+      add({ text: "Without Mora: the same payout with plain transfers. The network refused the whole run because one recipient couldn't receive TESTUSD. 0 of 3 paid." });
+    });
+
+  // Step 3: pay three demo recipients, two of them not ready.
   const pay = () =>
     run(async () => {
       const k = keys!;
@@ -137,7 +165,7 @@ export function TryView() {
       });
     });
 
-  // Step 3: switch to the recipient without TESTUSD and claim.
+  // Step 4: switch to the recipient without TESTUSD and claim.
   const claimAsRecipient = () =>
     run(async () => {
       const k = keys!;
@@ -149,7 +177,7 @@ export function TryView() {
       add({ text: `As ${shortAddress(k.noTrust.publicKey())}, you claimed ${formatAmount(out.amount)} TESTUSD. One signature added TESTUSD and paid it.`, status: "claimed", hash: sentHash(sent) });
     });
 
-  // Step 4: after the 5-minute window, return the payment nobody claimed.
+  // Step 5: after the 5-minute window, return the payment nobody claimed.
   const returnIt = () =>
     run(async () => {
       const k = keys!;
@@ -163,7 +191,7 @@ export function TryView() {
 
   // Watch the ledger during the return window.
   useEffect(() => {
-    if (step !== 4 || refundAfter === null) return;
+    if (step !== 5 || refundAfter === null) return;
     let alive = true;
     const tick = async () => {
       try {
@@ -183,7 +211,13 @@ export function TryView() {
   const steps = [
     { title: "Create demo keys", body: "Two minutes, no wallet. Keys live only in this tab.", action: start, cta: "Start" },
     { title: "Get TESTUSD from the faucet", body: "The faucet pays through Mora. You don't have TESTUSD yet, so it will wait for you, and you'll claim it.", action: faucet, cta: "Get 100 TESTUSD" },
-    { title: "Pay three people, two not ready", body: "One has TESTUSD, one doesn't, one's account isn't active. One signature, and the return window is 5 minutes.", action: pay, cta: "Send 10 TESTUSD each" },
+    {
+      title: "Without Mora",
+      body: "First, pay three people with plain transfers, the way most payout contracts do. Demo-only contract.",
+      action: withoutMora,
+      cta: "Try the plain payout",
+    },
+    { title: "With Mora: pay the same three", body: "One has TESTUSD, one doesn't, one's account isn't active. One signature, and the return window is 5 minutes.", action: pay, cta: "Send 10 TESTUSD each" },
     { title: "Switch to a recipient and claim", body: "Become the recipient without TESTUSD and claim with one signature.", action: claimAsRecipient, cta: "Claim as recipient" },
     {
       title: "Wait, then return the unclaimed one",
@@ -198,7 +232,7 @@ export function TryView() {
     <div className="mx-auto w-full max-w-3xl space-y-8 pb-24 pt-28 sm:pt-32">
       <header className="space-y-3">
         <p className="text-xs uppercase tracking-wider text-muted-foreground">Try it · Testnet</p>
-        <h1 className="font-serif text-3xl sm:text-5xl">Every outcome, in five steps.</h1>
+        <h1 className="font-serif text-3xl sm:text-5xl">Every outcome, in six steps.</h1>
         <p className="text-sm text-muted-foreground">Real testnet transactions, each with a link. TESTUSD is a test asset with no value.</p>
       </header>
 
