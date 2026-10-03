@@ -4,7 +4,7 @@ import type { MoraNetwork } from "./network";
 import { RpcPool } from "./rpc";
 
 type AT<T> = contract.AssembledTransaction<T>;
-export type SignTransaction = NonNullable<contract.ClientOptions["signTransaction"]>;
+export type SignTransaction = contract.SignTransaction;
 
 export interface Caller {
   /** The account that pays the fee and signs. */
@@ -55,8 +55,22 @@ export function buildSendMany(
   );
 }
 
-export function buildClaim(net: MoraNetwork, caller: Caller, a: { from: string; to: string; token: string }): Promise<AT<ClaimResult>> {
-  return viaPool(net, caller, (c) => c.claim(a, { restore: true }));
+/**
+ * `restore: true` lets the SDK restore archived storage first, which asks the
+ * wallet for an extra signature. Callers pass it only after telling the user
+ * (PRD §15); by default an archived parcel shows up via needsRestore().
+ */
+export interface BuildOptions {
+  restore?: boolean;
+}
+
+export function buildClaim(
+  net: MoraNetwork,
+  caller: Caller,
+  a: { from: string; to: string; token: string },
+  o: BuildOptions = {},
+): Promise<AT<ClaimResult>> {
+  return viaPool(net, caller, (c) => c.claim(a, { restore: o.restore ?? false }));
 }
 
 export function buildClaimMany(
@@ -64,15 +78,25 @@ export function buildClaimMany(
   caller: Caller,
   a: { to: string; items: Array<{ from: string; token: string }> },
 ): Promise<AT<ClaimResult[]>> {
-  return viaPool(net, caller, (c) => c.claim_many(a, { restore: true }));
+  return viaPool(net, caller, (c) => c.claim_many(a, { restore: false }));
 }
 
-export function buildDeliver(net: MoraNetwork, caller: Caller, a: { from: string; to: string; token: string }): Promise<AT<DoorResult>> {
-  return viaPool(net, caller, (c) => c.deliver(a, { restore: true }));
+export function buildDeliver(
+  net: MoraNetwork,
+  caller: Caller,
+  a: { from: string; to: string; token: string },
+  o: BuildOptions = {},
+): Promise<AT<DoorResult>> {
+  return viaPool(net, caller, (c) => c.deliver(a, { restore: o.restore ?? false }));
 }
 
-export function buildRefund(net: MoraNetwork, caller: Caller, a: { from: string; to: string; token: string }): Promise<AT<DoorResult>> {
-  return viaPool(net, caller, (c) => c.refund(a, { restore: true }));
+export function buildRefund(
+  net: MoraNetwork,
+  caller: Caller,
+  a: { from: string; to: string; token: string },
+  o: BuildOptions = {},
+): Promise<AT<DoorResult>> {
+  return viaPool(net, caller, (c) => c.refund(a, { restore: o.restore ?? false }));
 }
 
 /**
@@ -113,4 +137,9 @@ export function simulationError(tx: AT<unknown>): { name?: string; message: stri
 export function needsRestore(tx: AT<unknown>): boolean {
   const sim = tx.simulation as { restorePreamble?: unknown } | undefined;
   return !!sim?.restorePreamble;
+}
+
+/** The hash of a transaction sent with signAndSend(). */
+export function sentHash(sent: contract.SentTransaction<unknown>): string | undefined {
+  return sent.sendTransactionResponse?.hash;
 }

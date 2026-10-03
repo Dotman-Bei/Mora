@@ -110,3 +110,11 @@ whose peer dependency (`@creit.tech/stellar-wallets-kit`) isn't installed, and
 the build fails. **Done:** Freighter, LOBSTR, xBull, Albedo, Hana and Rabet are
 imported one by one; WalletConnect is added when
 `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` is set.
+
+## D-013 · Event lookups use a 4-segment topic filter
+
+**Found:** Stellar RPC rejects topic filters longer than 4 segments ("topic
+cannot have more than 4 segments"), and Mora's events carry 5 topics
+(`mora, <type>, from, to, token`, PRD §11.5). **Done:** lookups filter on
+`mora, *, from, **` and match `to` and `token` after decoding. Topics stay as
+specified. The index uses the same filter with `mora, **`.

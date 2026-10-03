@@ -37,3 +37,19 @@ describe.skipIf(!live)("testnet", () => {
     expect(x.map((r) => r.readiness)).toEqual(["will-activate", "wait-not-active"]);
   }, 30_000);
 });
+
+describe.skipIf(!live)("resolution", () => {
+  it("finds the M0 claim on testnet", async () => {
+    const { findResolution } = await import("../src");
+    // M0 F2 run: deployer sent 5 TESTUSD to mora-test-recipient, who claimed it.
+    const r = await findResolution(net, {
+      from: (deployment as { mora: { deployer: string } }).mora.deployer,
+      to: process.env.MORA_TEST_RECIPIENT ?? "",
+      token: testusd.sac,
+    });
+    if (!process.env.MORA_TEST_RECIPIENT) return;
+    expect(r?.type).toBe("claimed");
+    expect(r?.amount).toBe(50_000_000n);
+    expect(r?.trustlineCreated).toBe(true);
+  }, 60_000);
+});
