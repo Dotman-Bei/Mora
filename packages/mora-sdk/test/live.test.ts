@@ -65,3 +65,24 @@ describe.skipIf(!live)("scan", () => {
     expect(confirmed[0]?.token).toBe(testusd.sac);
   }, 120_000);
 });
+
+describe.skipIf(!live)("mainnet asset config", () => {
+  it("each SAC's name() matches CODE:ISSUER (PRD §9)", async () => {
+    const { Account, Contract, TransactionBuilder, BASE_FEE, rpc, scValToNative } = await import("@stellar/stellar-sdk");
+    const main = (await import("../../../deployments/mainnet.json")).default as {
+      networkPassphrase: string;
+      assets: Array<{ code: string; issuer: string | null; sac: string }>;
+    };
+    const s = new rpc.Server(process.env.MAINNET_RPC_URL ?? "https://mainnet.sorobanrpc.com");
+    const src = new Account("GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN", "0");
+    for (const a of main.assets) {
+      const tx = new TransactionBuilder(src, { fee: BASE_FEE, networkPassphrase: main.networkPassphrase })
+        .addOperation(new Contract(a.sac).call("name"))
+        .setTimeout(30)
+        .build();
+      const r = await s.simulateTransaction(tx);
+      if (rpc.Api.isSimulationError(r)) throw new Error(r.error);
+      expect(scValToNative(r.result!.retval)).toBe(a.issuer ? `${a.code}:${a.issuer}` : "native");
+    }
+  }, 60_000);
+});

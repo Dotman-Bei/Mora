@@ -1,0 +1,35 @@
+{
+  "network": "mainnet",
+  "deployed": false,
+  "networkPassphrase": "Public Global Stellar Network ; September 2015",
+  "mora": {
+    "contractId": "",
+    "wasmSha256": "9a698f64bd0a78586a3c448783acace02835a18974f74f3cedaad6c8ea02488d",
+    "constructor": { "grace_ledgers": 120960, "max_items": 30 }
+  },
+  "assets": [
+    {
+      "code": "XLM",
+      "issuer": null,
+      "sac": "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA",
+      "decimals": 7
+    },
+    {
+      "code": "USDC",
+      "issuer": "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN",
+      "sac": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+      "decimals": 7,
+      "domain": "centre.io",
+      "source": "https://centre.io/.well-known/stellar.toml"
+    },
+    {
+      "code": "EURC",
+      "issuer": "GDHU6WRG4IEQXM5NZ4BMPKOXHW76MZM4Y2IEMFDVXBSDP6SJY4ITNPP2",
+      "sac": "CDTKPWPLOURQA2SGTKTUQOWRCBZEORB4BWBOMJ3D3ZTQQSGE5F6JBQLV",
+      "decimals": 7,
+      "domain": "circle.com",
+      "source": "https://horizon.stellar.org/accounts/GDHU6WRG4IEQXM5NZ4BMPKOXHW76MZM4Y2IEMFDVXBSDP6SJY4ITNPP2 (home_domain circle.com)"
+    }
+  ],
+  "verified": "2026-10-03: each SAC's name() read on mainnet matches CODE:ISSUER; issuers from stellar.toml / Horizon home_domain"
+}

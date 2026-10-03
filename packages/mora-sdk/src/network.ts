@@ -34,7 +34,7 @@ export interface DeploymentFile {
   network: NetworkId;
   networkPassphrase: string;
   mora: { contractId: string; constructor: { grace_ledgers: number; max_items: number } };
-  assets: Array<{ code: string; issuer: string | null; sac: string; decimals: number; domain?: string; test?: boolean }>;
+  assets: Array<{ code: string; issuer: string | null; sac: string; decimals: number; domain?: string; test?: boolean; source?: string }>;
 }
 
 export function networkFromDeployment(d: DeploymentFile, rpcUrls: string[]): MoraNetwork {
