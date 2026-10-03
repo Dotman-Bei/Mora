@@ -68,3 +68,23 @@ PRD lines conflict with it:
   colour on the page is borrowed from the product UI". **Done:** no brand accent.
   Colour appears only inside product UI: the Delivered / Waiting / Returned
   status marks, the way Midday's product screens carry category colours.
+
+## D-008 · `max_items` is set by the event-size cap, not CPU
+
+**Found:** simulation accepted `send_many` with 123 payees, but on-chain
+submissions failed from 44 with `resource_limit_exceeded`. Testnet caps contract
+events at `tx_max_contract_events_size_bytes = 16384` (return value included),
+and simulation does not enforce it. A delivered payee costs ~476 event bytes
+(the SAC's own `transfer` event plus Mora's `delivered`); a parked one ~276.
+
+**Done:** Mora's event data is now a single value or a vec instead of a map
+(topics unchanged from §11.5). Measured on chain, worst case all delivered:
+30 succeeds, 32 fails. Testnet deploys with `max_items = 30`. The app chunks
+longer lists (P1) and never relies on simulation alone for batch size.
+Scripts: `scripts/measure-max-items.mjs`, `scripts/measure-event-bytes.mjs`,
+`scripts/submit-send-many.mjs`.
+
+## D-009 · `grace_ledgers = 120960`
+
+Equal to testnet's `min_persistent_ttl` (7 days at the probed 5.0 s close
+time). A parcel stays restorable-free for a week after its return date.

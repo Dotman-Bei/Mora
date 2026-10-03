@@ -130,7 +130,7 @@ fn is_recipient_side(code: u32) -> bool {
 // Events (PRD §11.5). Topics: mora, <name>, from, to, token.
 // ---------------------------------------------------------------------------
 
-#[contractevent(topics = ["mora", "delivered"])]
+#[contractevent(topics = ["mora", "delivered"], data_format = "single-value")]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Delivered {
     #[topic]
@@ -142,7 +142,7 @@ pub struct Delivered {
     pub amount: i128,
 }
 
-#[contractevent(topics = ["mora", "parked"])]
+#[contractevent(topics = ["mora", "parked"], data_format = "vec")]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Parked {
     #[topic]
@@ -157,7 +157,7 @@ pub struct Parked {
     pub parcel_total: i128,
 }
 
-#[contractevent(topics = ["mora", "claimed"])]
+#[contractevent(topics = ["mora", "claimed"], data_format = "vec")]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Claimed {
     #[topic]
@@ -170,7 +170,7 @@ pub struct Claimed {
     pub trustline_created: bool,
 }
 
-#[contractevent(topics = ["mora", "moved"])]
+#[contractevent(topics = ["mora", "moved"], data_format = "single-value")]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Moved {
     #[topic]
@@ -182,7 +182,7 @@ pub struct Moved {
     pub amount: i128,
 }
 
-#[contractevent(topics = ["mora", "returned"])]
+#[contractevent(topics = ["mora", "returned"], data_format = "single-value")]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Returned {
     #[topic]
