@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run && pnpm --filter mora-sdk test",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@creit-tech/stellar-wallets-kit": "jsr:2.7.0",
