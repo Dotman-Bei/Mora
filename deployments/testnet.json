@@ -6,7 +6,10 @@
   "mora": {
     "contractId": "CAHCJV5S5LJIL53YPNS4YTO2QWK65RYJG56SMSMYIPU45RVHV4YZZ3SF",
     "wasmSha256": "9a698f64bd0a78586a3c448783acace02835a18974f74f3cedaad6c8ea02488d",
-    "constructor": { "grace_ledgers": 120960, "max_items": 30 },
+    "constructor": {
+      "grace_ledgers": 120960,
+      "max_items": 30
+    },
     "deployer": "GBXUOWMDH7JDRVG6RLX6XR7GZ3SBDQ5QD3VJ7CVTW76T3EWJWFI3HEQB"
   },
   "baselinePayout": {
@@ -15,7 +18,12 @@
     "label": "Without Mora (demo only)"
   },
   "assets": [
-    { "code": "XLM", "issuer": null, "sac": "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC", "decimals": 7 },
+    {
+      "code": "XLM",
+      "issuer": null,
+      "sac": "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
+      "decimals": 7
+    },
     {
       "code": "TESTUSD",
       "issuer": "GCTDRHJVVT5KW3BWWMBUHOUPJCBOLNJ7RW6NUEJQRWRSOFX7P5NG6UBU",
@@ -24,5 +32,13 @@
       "test": true
     }
   ],
-  "faucet": { "account": "GDCFE6RCOSSAGVDSQOPSJ5TTLNFNDY5K2BLLW32HRXZO2JSQXOTYMZMD", "amount": "1000000000" }
+  "faucet": {
+    "account": "GDCFE6RCOSSAGVDSQOPSJ5TTLNFNDY5K2BLLW32HRXZO2JSQXOTYMZMD",
+    "amount": "1000000000"
+  },
+  "partnerExample": {
+    "contractId": "CA6HYBTE232ZHCA5GUNHFIXXDY6SD2HP6OCOD4SNBNYPCNWP4RCH5EO3",
+    "wasmSha256": "5d71c9f892c85f5f61003fae313f7fbd8356b8388db5409ec823d61858c419cd",
+    "label": "Example partner payout contract (demo)"
+  }
 }

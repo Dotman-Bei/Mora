@@ -118,3 +118,13 @@ cannot have more than 4 segments"), and Mora's events carry 5 topics
 (`mora, <type>, from, to, token`, PRD §11.5). **Done:** lookups filter on
 `mora, *, from, **` and match `to` and `token` after decoding. Topics stay as
 specified. The index uses the same filter with `mora, **`.
+
+## D-014 · Partners pass `refund_after` in; never derive it from the ledger
+
+**Found** deploying `partner-example` on testnet: a contract that computed
+`refund_after = e.ledger().sequence() + N` before calling `mora.send` failed
+with `auth: invalid_action`. The payer authorizes Mora's `send` with exact
+arguments recorded during simulation; the ledger advances before the
+transaction applies, so the arguments no longer match. Unit tests with
+`mock_all_auths` can't catch this. **Done:** `pay` takes `refund_after` from
+the caller, and /integrate says so next to the snippet.
