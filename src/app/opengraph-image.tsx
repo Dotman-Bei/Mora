@@ -1,0 +1,48 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+import { ImageResponse } from "next/og";
+
+// Social card in the site's own system: warm off-white ground, serif
+// headline with one greyed word, hairline, lowercase wordmark. Fonts are
+// self-hosted (frontend.md §7).
+
+export const alt = "Mora: payments that wait.";
+export const size = { width: 1200, height: 630 };
+export const contentType = "image/png";
+
+export default async function Image() {
+  const [serif, sans] = await Promise.all([
+    readFile(join(process.cwd(), "src/app/fonts/HedvigLettersSerif-Regular.ttf")),
+    readFile(join(process.cwd(), "src/app/fonts/HedvigLettersSans-Regular.ttf")),
+  ]);
+  return new ImageResponse(
+    (
+      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", background: "#f7f6f3", padding: 72 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", width: 40, height: 40 }}>
+            <div style={{ height: 2, background: "#121212" }} />
+            <div style={{ alignSelf: "center", width: 16, height: 12, background: "#121212" }} />
+            <div style={{ height: 2, background: "#121212" }} />
+          </div>
+          <div style={{ fontFamily: "Sans", fontSize: 34, color: "#121212" }}>mora</div>
+        </div>
+        <div style={{ display: "flex", fontFamily: "Serif", fontSize: 112, color: "#121212", letterSpacing: -2 }}>
+          Payments that&nbsp;<span style={{ color: "#8a8a8a" }}>wait</span>.
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <div style={{ height: 1, background: "#dbdad7" }} />
+          <div style={{ fontFamily: "Sans", fontSize: 28, color: "#616161" }}>
+            Send money to anyone on Stellar. If they can&apos;t receive it yet, it waits for them.
+          </div>
+        </div>
+      </div>
+    ),
+    {
+      ...size,
+      fonts: [
+        { name: "Serif", data: serif, weight: 400, style: "normal" },
+        { name: "Sans", data: sans, weight: 400, style: "normal" },
+      ],
+    },
+  );
+}
