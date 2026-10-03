@@ -25,5 +25,13 @@ Also verified the same day:
 - Faucet API: fresh address → waiting; repeat → refused with the waiting link;
   account with trustline → delivered.
 
-Still open for M2 as written: the same run on the **public URL**, and a claim
-signed on a **phone** (F5).
+## On the public URL
+
+Same day, the full walkthrough on **https://mora-chi.vercel.app/try**:
+without Mora 0 of 3 paid; with Mora 1 delivered and 2 waiting; the recipient
+without TESTUSD claimed (trustline added in the same signature); the
+unclaimed payment returned after the 5-minute window (339 s). The live
+faucet API also paid a fresh address through Mora (waiting).
+
+Still open: a claim signed on a **phone** wallet (F5), which needs the
+WalletConnect project ID.

@@ -4,6 +4,8 @@
 
 *Mora* is Latin for "delay". *Mora creditoris* is the delay when the person being paid isn't ready to take the money.
 
+**Live:** https://mora-chi.vercel.app (testnet; start with [/try](https://mora-chi.vercel.app/try))
+
 ## The problem
 
 On Stellar an account has to add an asset (a trustline) before it can hold it. When a payout contract or smart wallet sends USDC to someone who hasn't, the transfer fails, and if it was one line of a payout run, the whole run fails with it. Classic claimable balances solved this in 2020, but contracts and smart wallets can't create them.
