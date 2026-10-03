@@ -1,0 +1,24 @@
+{
+  "name": "mora-sdk",
+  "version": "0.1.0",
+  "description": "Send payments that wait on Stellar. Build, simulate and read Mora transactions.",
+  "type": "module",
+  "license": "MIT",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@stellar/stellar-sdk": "^17.2.1"
+  },
+  "devDependencies": {
+    "@stellar/stellar-sdk": "17.2.1",
+    "typescript": "^5",
+    "vitest": "^5.0.3"
+  }
+}
