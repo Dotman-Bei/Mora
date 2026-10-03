@@ -5,7 +5,7 @@
 export const site = {
   name: "Mora",
   wordmark: "mora",
-  url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://mora.vercel.app",
+  url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://mora-chi.vercel.app",
   title: "Mora · Payments that wait",
   description:
     "Send money to anyone on Stellar. If they can't receive it yet, it waits for them, and it comes back to you if they never take it.",

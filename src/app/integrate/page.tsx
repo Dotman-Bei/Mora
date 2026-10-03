@@ -53,7 +53,7 @@ if (parseOutcome(sent.result).status === "waiting") {
   share(claimLink({ network: net.id, from, to, asset: token }));
 }`;
 
-const LINK = `https://mora.vercel.app/claim?network=testnet
+const LINK = `https://mora-chi.vercel.app/claim?network=testnet
   &from=<sender G… or C…>
   &to=<recipient G… or C…>
   &asset=<the asset's SAC contract ID>`;

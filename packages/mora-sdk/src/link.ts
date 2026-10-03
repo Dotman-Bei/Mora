@@ -13,7 +13,7 @@ export interface ClaimLinkParams {
  * Everything needed to find the payment on chain is in the link, so it works
  * even when every Mora server is down.
  */
-export function claimLink(p: ClaimLinkParams, base = "https://mora.vercel.app"): string {
+export function claimLink(p: ClaimLinkParams, base = "https://mora-chi.vercel.app"): string {
   const q = new URLSearchParams({ network: p.network, from: p.from, to: p.to, asset: p.asset });
   return `${base.replace(/\/$/, "")}/claim?${q.toString()}`;
 }
