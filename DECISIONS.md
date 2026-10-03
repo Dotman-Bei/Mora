@@ -88,3 +88,25 @@ Scripts: `scripts/measure-max-items.mjs`, `scripts/measure-event-bytes.mjs`,
 
 Equal to testnet's `min_persistent_ttl` (7 days at the probed 5.0 s close
 time). A parcel stays restorable-free for a week after its return date.
+
+## D-010 · Hero: one CTA, with "Check for payments" as a text link
+
+PRD §6.1 asks for two hero buttons; frontend.md §6.2 allows one CTA. **Done:**
+"Send a payment" is the only button. "Check for payments" sits in the hero
+microcopy line as a text link, the way the reference header carries "Sign in".
+
+## D-011 · Hero visual is the product itself
+
+frontend.md §6.2 frames a looping video and light/dark dashboard images. We
+have neither yet (§13 warns against an empty frame). **Done:** the hero shows
+an illustration of the send results screen built from the app's own
+components, so it is correct in both themes by construction. The video modal
+is omitted (allowed by §6.2). A real screen recording can replace it later.
+
+## D-012 · Wallet modules chosen individually
+
+`defaultModules()` from Stellar Wallets Kit 2.7 imports a MetaMask adapter
+whose peer dependency (`@creit.tech/stellar-wallets-kit`) isn't installed, and
+the build fails. **Done:** Freighter, LOBSTR, xBull, Albedo, Hana and Rabet are
+imported one by one; WalletConnect is added when
+`NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` is set.
