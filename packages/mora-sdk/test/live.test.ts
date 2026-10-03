@@ -53,3 +53,15 @@ describe.skipIf(!live)("resolution", () => {
     expect(r?.trustlineCreated).toBe(true);
   }, 60_000);
 });
+
+describe.skipIf(!live)("scan", () => {
+  it("finds a waiting payment for a recipient from RPC history", async () => {
+    const { waitingCandidatesFromRpc, confirmParcels } = await import("../src");
+    const to = process.env.MORA_WAITING_TO;
+    if (!to) return;
+    const c = await waitingCandidatesFromRpc(net, to);
+    const confirmed = await confirmParcels(net, to, c);
+    expect(confirmed.length).toBeGreaterThan(0);
+    expect(confirmed[0]?.token).toBe(testusd.sac);
+  }, 120_000);
+});

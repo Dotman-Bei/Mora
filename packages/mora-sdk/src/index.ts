@@ -13,5 +13,6 @@ export * from "./parse";
 export * from "./link";
 export * from "./events";
 export * from "./resolution";
+export * from "./scan";
 export { Client as MoraClient, Errors as MoraErrors } from "./generated/mora-client";
 export type { Outcome, ClaimResult, DoorResult, Parcel, Payee, ParcelRef, Config } from "./generated/mora-client";
