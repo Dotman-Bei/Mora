@@ -1,0 +1,25 @@
+# deps
+node_modules/
+.pnpm-store/
+
+# next
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# rust
+target/
+contracts/**/test_snapshots/
+
+# env & keys (§22.5: no key in source)
+.env
+.env.*
+!.env.example
+.stellar/
+*.key
+
+# misc
+.DS_Store
+.vercel
+coverage/
