@@ -35,3 +35,13 @@ faucet API also paid a fresh address through Mora (waiting).
 
 Still open: a claim signed on a **phone** wallet (F5), which needs the
 WalletConnect project ID.
+
+## Index live (M5)
+
+October 4, 2026: Supabase connected through the Vercel integration, migration
+applied, first sync indexed 30 testnet events. Checked against the chain:
+the deployer's history reads 1 claimed, 1 delivered, 4 waiting, which matches
+every payment it sent; the partner contract's payment is listed in its
+recipient's inbox; the M0 recipient's inbox is empty (claimed). The live
+Inbox now reads from the index, and the landing page shows
+"Testnet so far · 5 delivered · 16 waited · 7 claimed · 2 returned".
