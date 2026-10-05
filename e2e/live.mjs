@@ -228,7 +228,9 @@ await check("activity: return the unclaimed payment after the window", async () 
   await page.goto(`${BASE}/activity`, { waitUntil: "load" });
   await page.getByText(/Checked at ledger/).waitFor({ timeout: 120_000 });
   await page.getByRole("button", { name: "Return", exact: true }).first().click({ timeout: 30_000 });
-  await page.getByRole("button", { name: "Return", exact: true }).first().waitFor({ state: "detached", timeout: 120_000 });
+  // Wait for the row itself to say Returned; the button only changes label
+  // while signing, and leaving the page early would cancel the transaction.
+  await page.locator("main ul.border").getByText("Returned", { exact: true }).first().waitFor({ timeout: 120_000 });
   await page.goto(claimUrl(A, C), { waitUntil: "load" });
   await page.getByText("Returned to the sender").waitFor({ timeout: 120_000 });
 }, page);
