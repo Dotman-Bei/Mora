@@ -85,7 +85,9 @@ export function ClaimView({ params }: { params: Partial<ClaimLinkParams> }) {
           if (alive) setLoad({ kind: "waiting", parcel, probe, reason: why });
           return;
         }
-        const res = await findResolution(net, key);
+        // The index answers in one request; RPC history is the fallback, so
+        // the link still works with every Mora server down (PRD §6.3).
+        const res = (await indexResolution(net.id, key).catch(() => null)) ?? (await findResolution(net, key));
         if (!alive) return;
         setLoad(res ? { kind: "resolved", res, probe } : { kind: "empty" });
       } catch (e) {
@@ -144,6 +146,25 @@ export function ClaimView({ params }: { params: Partial<ClaimLinkParams> }) {
       ) : null}
     </div>
   );
+}
+
+/** How the payment ended, from Mora's index. Null when the index can't say. */
+async function indexResolution(network: string, key: { from: string; to: string; token: string }): Promise<Resolution | null> {
+  const statuses = ["claimed", "returned", "moved"] as const;
+  const pages = await Promise.all(
+    statuses.map(async (status) => {
+      const r = await fetch(`/api/v1/parcels?network=${network}&to=${key.to}&status=${status}`);
+      if (!r.ok) throw new Error(`index ${r.status}`);
+      const j = (await r.json()) as { items: Array<{ from: string; token: string; amount: string; resolvedTx: string | null; ledger: number; at: string }> };
+      return j.items.filter((i) => i.from === key.from && i.token === key.token && i.resolvedTx).map((i) => ({ ...i, status }));
+    }),
+  );
+  const rows = pages.flat().sort((a, b) => b.ledger - a.ledger);
+  const latest = rows[0];
+  if (!latest?.resolvedTx) return null;
+  // One exit can close several payments to the same key; show their total.
+  const amount = rows.filter((r) => r.resolvedTx === latest.resolvedTx).reduce((s, r) => s + BigInt(r.amount), 0n);
+  return { type: latest.status, amount, txHash: latest.resolvedTx, ledger: latest.ledger, closedAt: latest.at };
 }
 
 function Waiting({
