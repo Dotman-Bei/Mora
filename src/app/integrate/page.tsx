@@ -177,7 +177,9 @@ export default function IntegratePage() {
               </dl>
             </div>
           ))}
-          {!deployments.mainnet ? <p className="text-sm text-muted-foreground">Mainnet: deployment pending. It will be listed here when live.</p> : null}
+          {!deployments.mainnet ? (
+            <p className="text-sm text-muted-foreground">Mora runs on Stellar testnet. Mainnet comes after an audit.</p>
+          ) : null}
         </div>
       </Section>
 
@@ -220,7 +222,7 @@ export default function IntegratePage() {
           {[
             ["Stellar Asset Contract tokens only.", "Waiting depends on SAC error codes, and claiming uses SAC trust."],
             ["No memos.", "Soroban transactions can't carry them. Mora's app blocks addresses that require one (SEP-29); the contract can't, so check before you send."],
-            ["Unaudited.", "Mora's app caps mainnet payments. Contracts calling Mora directly are not capped."],
+            ["Unaudited.", "Testnet only for now. Mainnet follows an audit, with payments capped in the app at first."],
             ["Immutable.", "A bug means a new deployment, announced on this page."],
           ].map(([t, b]) => (
             <li key={t}>

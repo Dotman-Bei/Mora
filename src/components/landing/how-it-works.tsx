@@ -109,7 +109,7 @@ function WaitAnimation({ reduced, onComplete }: AnimProps) {
       {f >= 3 ? (
         <div className="ml-auto max-w-[17rem] animate-fade-in-scale rounded-2xl border border-border bg-card p-3 text-sm">
           <p className="text-foreground">Your October payout is waiting 👇</p>
-          <p className="mt-1 break-all font-mono text-xs text-muted-foreground">mora-chi.vercel.app/claim?network=mainnet&from=GDQX…&to=GBN4…</p>
+          <p className="mt-1 break-all font-mono text-xs text-muted-foreground">mora-chi.vercel.app/claim?network=testnet&from=GDQX…&to=GBN4…</p>
         </div>
       ) : null}
     </div>

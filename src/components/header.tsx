@@ -101,7 +101,16 @@ function Header({ top }: { top: string }) {
 
 export function NetworkSwitch() {
   const { id, setNetwork } = useNetwork();
-  const ids: NetworkId[] = ["mainnet", "testnet"];
+  const ids: NetworkId[] = (["mainnet", "testnet"] as NetworkId[]).filter((n) => !!NETWORKS[n]);
+  // One network deployed (testnet for the hackathon): a label, not a switch.
+  if (ids.length < 2) {
+    return (
+      <span className="inline-flex h-7 items-center gap-1.5 border border-border px-2.5 text-xs text-muted-foreground">
+        <span className="inline-block h-1.5 w-1.5 rounded-full bg-waiting" aria-hidden />
+        {NETWORK_LABEL[id]}
+      </span>
+    );
+  }
   return (
     <div className="inline-flex border border-border text-xs" role="radiogroup" aria-label="Network">
       {ids.map((n) => {
