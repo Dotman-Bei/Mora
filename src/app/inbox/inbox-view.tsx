@@ -25,6 +25,7 @@ import { ledgerDate, reportTx, walletErrorMessage } from "@/lib/tx";
 // Everything waiting for an address, from every sender and every app that
 // uses Mora, each confirmed against the contract before it's listed (PRD §6.4).
 
+type Notice = { text: string; hashes: string[] };
 type Item = WaitingCandidate & { amount: bigint; refundAfter: number; asset: MoraAsset };
 type Load =
   | { kind: "idle" }
@@ -59,6 +60,8 @@ export function InboxView() {
   const [load, setLoad] = useState<Load>({ kind: "idle" });
   const [page, setPage] = useState(1);
   const [nonce, setNonce] = useState(0);
+  // Lives here, not in the list, so it survives the reload after claiming.
+  const [notice, setNotice] = useState<Notice | null>(null);
 
   useEffect(() => {
     if (wallet.address && !address) setAddress(wallet.address);
@@ -102,7 +105,10 @@ export function InboxView() {
         onSubmit={(e) => {
           e.preventDefault();
           const a = pasted.trim();
-          if (addressKind(a) === "account" || addressKind(a) === "contract") setAddress(a);
+          if (addressKind(a) === "account" || addressKind(a) === "contract") {
+            setAddress(a);
+            setNotice(null);
+          }
         }}
       >
         <input
@@ -130,6 +136,17 @@ export function InboxView() {
         </p>
       ) : null}
 
+      {notice ? (
+        <div className="space-y-2 border border-border p-4 text-sm" role="status">
+          <p>{notice.text}</p>
+          <div className="flex flex-wrap gap-4">
+            {notice.hashes.map((h) => (
+              <TxLink key={h} href={net.explorer.tx(h)} />
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       {load.kind === "loading" ? (
         <div className="space-y-3">
           <Skeleton className="h-40 w-full" />
@@ -152,6 +169,7 @@ export function InboxView() {
           source={load.source}
           page={page}
           setPage={setPage}
+          onNotice={setNotice}
           onClaimed={() => setNonce((n) => n + 1)}
         />
       ) : null}
@@ -167,6 +185,7 @@ function Ready({
   source,
   page,
   setPage,
+  onNotice,
   onClaimed,
 }: {
   items: Item[];
@@ -176,18 +195,18 @@ function Ready({
   source: "index" | "rpc";
   page: number;
   setPage: (n: number) => void;
+  onNotice: (n: Notice | null) => void;
   onClaimed: () => void;
 }) {
   const { net } = useNetwork();
   const wallet = useWallet();
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ text: string; hashes: string[] } | null>(null);
   const shown = items.slice(0, page * PAGE);
 
   /** Claim all: one signature per max_items, simulate first (PRD §6.4). */
   const claimAll = useCallback(async () => {
     setBusy(true);
-    setMsg(null);
+    onNotice(null);
     const hashes: string[] = [];
     let claimed = 0;
     let blocked = 0;
@@ -213,14 +232,14 @@ function Ready({
           else blocked++;
         }
       }
-      setMsg({ text: `${claimed} claimed${blocked ? `, ${blocked} still waiting (open each for the reason)` : ""}.`, hashes });
+      onNotice({ text: `${claimed} claimed${blocked ? `, ${blocked} still waiting (open each for the reason)` : ""}.`, hashes });
       onClaimed();
     } catch (e) {
-      setMsg({ text: walletErrorMessage(e), hashes });
+      onNotice({ text: walletErrorMessage(e), hashes });
     } finally {
       setBusy(false);
     }
-  }, [items, net, address, wallet.signTransaction, onClaimed]);
+  }, [items, net, address, wallet.signTransaction, onClaimed, onNotice]);
 
   return (
     <div className="space-y-6">
@@ -243,16 +262,6 @@ function Ready({
               </Button>
             ) : null}
           </div>
-          {msg ? (
-            <div className="space-y-2 border border-border p-4 text-sm">
-              <p>{msg.text}</p>
-              <div className="flex flex-wrap gap-4">
-                {msg.hashes.map((h) => (
-                  <TxLink key={h} href={net.explorer.tx(h)} />
-                ))}
-              </div>
-            </div>
-          ) : null}
           <div className="space-y-4">
             {shown.map((it) => {
               const returnable = probe.ledger > it.refundAfter;
