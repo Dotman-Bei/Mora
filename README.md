@@ -24,15 +24,19 @@ One shared Soroban contract per network, with no admin, no upgrade path and no f
 
 ## Status
 
-| | Testnet | Mainnet |
-|---|---|---|
-| Mora contract | [`CAHCJV5S…ZZ3SF`](https://stellar.expert/explorer/testnet/contract/CAHCJV5S5LJIL53YPNS4YTO2QWK65RYJG56SMSMYIPU45RVHV4YZZ3SF) | Deployment kit ready ([scripts/deploy-mainnet.sh](scripts/deploy-mainnet.sh)); owner deploys |
-| Parameters | `grace_ledgers` 120,960 · `max_items` 30 | same |
-| Assets | XLM, TESTUSD (test asset) | XLM, USDC, EURC (Circle) |
-| Demo-only `baseline-payout` | [`CDS2BXVY…5HISB`](https://stellar.expert/explorer/testnet/contract/CDS2BXVY2D7GA25SVKP4FPSADST5AI6DUODJUG3UPZ4P7MFW7KR5HISB) | n/a |
-| Example partner contract | [`CA6HYBTE…H5EO3`](https://stellar.expert/explorer/testnet/contract/CA6HYBTE232ZHCA5GUNHFIXXDY6SD2HP6OCOD4SNBNYPCNWP4RCH5EO3) | n/a |
+Mora runs on **Stellar testnet**. The hackathon organizers asked for testnet-only builds, so mainnet is out of scope for now ([DECISIONS D-015](DECISIONS.md)).
 
-Evidence: [docs/M0-feasibility.md](docs/M0-feasibility.md) (F1–F4, F6 verified on chain) and [docs/M2-testnet-e2e.md](docs/M2-testnet-e2e.md) (browser-driven run: delivered, waiting, claimed with trustline, returned). The mainnet pilot (PRD §16) hasn't run yet, so there are no pilot numbers here.
+| | Testnet |
+|---|---|
+| Mora contract | [`CAHCJV5S…ZZ3SF`](https://stellar.expert/explorer/testnet/contract/CAHCJV5S5LJIL53YPNS4YTO2QWK65RYJG56SMSMYIPU45RVHV4YZZ3SF) |
+| Parameters | `grace_ledgers` 120,960 · `max_items` 30 (measured on chain) |
+| Assets | XLM, TESTUSD (a test asset with no value) |
+| Demo-only `baseline-payout` | [`CDS2BXVY…5HISB`](https://stellar.expert/explorer/testnet/contract/CDS2BXVY2D7GA25SVKP4FPSADST5AI6DUODJUG3UPZ4P7MFW7KR5HISB) |
+| Example partner contract | [`CA6HYBTE…H5EO3`](https://stellar.expert/explorer/testnet/contract/CA6HYBTE232ZHCA5GUNHFIXXDY6SD2HP6OCOD4SNBNYPCNWP4RCH5EO3) |
+
+Evidence: [docs/M0-feasibility.md](docs/M0-feasibility.md) (F1–F4, F6 verified on chain) and [docs/M2-testnet-e2e.md](docs/M2-testnet-e2e.md) (browser-driven runs on the public URL: delivered, waiting, claimed with trustline, returned; index live).
+
+Mainnet is prepared but not deployed: [deployments/mainnet.json](deployments/mainnet.json) lists Circle USDC/EURC with each SAC verified on chain, and [scripts/deploy-mainnet.sh](scripts/deploy-mainnet.sh) deploys the testnet-verified wasm. It goes live after an audit (PRD §17.1).
 
 ## Try it
 
@@ -88,7 +92,7 @@ cp .env.example .env.local     # fill in what you have; everything is optional f
 pnpm dev                       # http://localhost:3000
 
 pnpm test                      # app + sdk unit tests
-MORA_LIVE=1 pnpm --filter mora-sdk test   # live testnet/mainnet read checks
+MORA_LIVE=1 pnpm --filter mora-sdk test   # live read checks (testnet, plus mainnet asset config)
 
 cd contracts && cargo test && stellar contract build
 ```
@@ -107,11 +111,11 @@ cd contracts && cargo test && stellar contract build
 
 1. Create a Supabase project and run [supabase/migrations/0001_index.sql](supabase/migrations/0001_index.sql).
 2. Import the repo into Vercel and set the variables above. [vercel.json](vercel.json) schedules the daily sync.
-3. Mainnet: fund a key you control, then `./scripts/deploy-mainnet.sh <key-name> <rpc-url>`. It refuses to deploy any wasm other than the one verified on testnet, and writes the contract ID to `deployments/mainnet.json`.
+3. Mainnet (after an audit, not part of the hackathon build): fund a key you control, then `./scripts/deploy-mainnet.sh <key-name> <rpc-url>`. It refuses to deploy any wasm other than the one verified on testnet, and writes the contract ID to `deployments/mainnet.json`.
 
 ## What Mora doesn't protect
 
-- **The contract is unaudited.** Mainnet payments are capped in the app (100 USDC, 100 EURC, 500 XLM per batch). Contracts calling Mora directly are not capped.
+- **The contract is unaudited**, which is why Mora is testnet-only. When it reaches mainnet after an audit, the app will cap payments at first (100 USDC, 100 EURC, 500 XLM per batch); contracts calling Mora directly are not capped.
 - **`trust` creates a trustline with no limit.**
 - **Assets that need issuer approval** wait until the issuer approves.
 - **A recipient needs an active account with a little free XLM to claim**, except for XLM payments large enough to activate the account (2 × base reserve).

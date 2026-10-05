@@ -128,3 +128,14 @@ arguments recorded during simulation; the ledger advances before the
 transaction applies, so the arguments no longer match. Unit tests with
 `mock_all_auths` can't catch this. **Done:** `pay` takes `refund_after` from
 the caller, and /integrate says so next to the snippet.
+
+## D-015 · Testnet only; mainnet cancelled for the hackathon
+
+**Changed:** on October 5, 2026 the hackathon organizers asked that builds stay
+on testnet. **Done:** no mainnet deployment and no real-money pilot (PRD §16,
+§19 M3–M4 out of scope). The app shows a single "Testnet" label instead of a
+network switch, and copy that mentioned a mainnet beta now says mainnet follows
+an audit. The mainnet configuration (Circle USDC/EURC, SACs verified on chain)
+and the owner-run deploy script stay in the repository, unused, for after an
+audit (PRD §17.1). The app lists mainnet only if `deployments/mainnet.json` says
+it is deployed, so nothing mainnet-related is reachable.
