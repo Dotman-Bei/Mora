@@ -23,3 +23,6 @@ contracts/**/test_snapshots/
 .DS_Store
 .vercel
 coverage/
+
+# e2e screenshots
+e2e/artifacts/
