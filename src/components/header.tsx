@@ -1,6 +1,7 @@
 "use client";
 
-import { shortAddress, type NetworkId } from "mora-sdk";
+import { shortAddress } from "mora-sdk/format";
+import type { NetworkId } from "mora-sdk/network";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -46,7 +47,7 @@ function Header({ top }: { top: string }) {
   return (
     <header className={`fixed left-0 right-0 ${top} z-50 ${open ? "bg-background" : "bg-background-semi-transparent backdrop-blur-md"}`}>
       <div className="mx-auto flex max-w-[1400px] items-center justify-between px-4 py-3 xl:px-6 xl:py-4 2xl:px-8">
-        <Link href="/" className="flex items-center gap-2 text-foreground" aria-label="Mora home">
+        <Link href="/" className="-ml-1 flex h-11 items-center gap-2 px-1 text-foreground" aria-label="Mora home">
           <Icons.Logo className="h-6 w-6" />
           <span className="text-lg leading-none xl:hidden">mora</span>
         </Link>

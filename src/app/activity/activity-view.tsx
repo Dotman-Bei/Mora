@@ -223,7 +223,7 @@ export function ActivityView() {
                     setFilter(f);
                     setPage(1);
                   }}
-                  className={`h-8 px-3 capitalize ${filter === f ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                  className={`h-10 px-3 capitalize sm:h-8 ${filter === f ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
                 >
                   {f}
                 </button>

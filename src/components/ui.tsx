@@ -18,7 +18,8 @@ const variants: Record<Variant, string> = {
 const sizes: Record<Size, string> = {
   default: "h-10 px-4",
   lg: "h-11 px-6",
-  sm: "h-8 px-3 text-xs",
+  // 40px on touch screens, compact from sm up.
+  sm: "h-10 px-3 text-xs sm:h-8",
 };
 
 export function buttonClass(variant: Variant = "default", size: Size = "default", extra = "") {

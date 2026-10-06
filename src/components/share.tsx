@@ -59,7 +59,7 @@ export function ShareActions({ url, message }: { url: string; message: string })
             href={i.href}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex h-8 items-center border border-border px-3 text-xs text-foreground transition-colors hover:border-muted-foreground"
+            className="inline-flex h-10 items-center border border-border px-3 text-xs sm:h-8 text-foreground transition-colors hover:border-muted-foreground"
           >
             {i.label}
           </a>

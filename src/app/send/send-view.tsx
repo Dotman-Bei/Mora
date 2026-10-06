@@ -282,7 +282,7 @@ export function SendView() {
                 role="tab"
                 aria-selected={mode === m}
                 onClick={() => setMode(m)}
-                className={`h-7 px-3 ${mode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                className={`h-10 px-3 sm:h-7 ${mode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
               >
                 {m === "one" ? "One person" : "A list"}
               </button>

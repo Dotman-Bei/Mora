@@ -1,6 +1,5 @@
 "use client";
 
-import { RpcPool } from "mora-sdk";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
@@ -20,7 +19,7 @@ export function Footer() {
                 <ul className="space-y-2">
                   {c.links.map((l) => (
                     <li key={l.href}>
-                      <Link href={l.href} className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+                      <Link href={l.href} className="inline-block py-1 text-sm text-muted-foreground transition-colors hover:text-foreground">
                         {l.label}
                       </Link>
                     </li>
@@ -86,10 +85,7 @@ function NetworkStatus() {
   useEffect(() => {
     let alive = true;
     setState("checking");
-    RpcPool.for(net)
-      .call((s) => s.getHealth())
-      .then((h) => alive && setState(h.status === "healthy" ? "healthy" : "unreachable"))
-      .catch(() => alive && setState("unreachable"));
+    rpcHealthy(net.rpcUrls).then((ok) => alive && setState(ok ? "healthy" : "unreachable"));
     return () => {
       alive = false;
     };
@@ -102,4 +98,23 @@ function NetworkStatus() {
       {NETWORK_LABEL[id]} · {label}
     </p>
   );
+}
+
+/**
+ * One JSON-RPC getHealth per provider, primary first. Plain fetch on purpose:
+ * the footer is on every page and shouldn't pull in the Stellar SDK.
+ */
+async function rpcHealthy(urls: string[]): Promise<boolean> {
+  for (const url of urls) {
+    try {
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getHealth" }),
+      });
+      const j = (await r.json()) as { result?: { status?: string } };
+      if (j.result?.status === "healthy") return true;
+    } catch {}
+  }
+  return false;
 }
