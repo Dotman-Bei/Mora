@@ -176,6 +176,51 @@
   }
 }
 
+/*
+ * Halide topo hero (components/ui/halide-topo-hero.tsx). Scoped classes only:
+ * it reads the site's tokens and defines none of its own.
+ */
+.halide-stage {
+  perspective: 2000px;
+}
+.halide-canvas {
+  transform-style: preserve-3d;
+  transform: rotateX(var(--tilt-x)) rotateZ(var(--tilt-z)) scale(var(--fit, 1));
+  transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  /* backwards: only the "from" frame applies before start, so after the
+     entrance the element's own (and the parallax's inline) transform wins. */
+  animation: halide-enter 2.2s cubic-bezier(0.16, 1, 0.3, 1) 0.2s backwards;
+  will-change: transform;
+}
+.halide-layer {
+  transform-style: preserve-3d;
+  transition: transform 0.5s ease;
+}
+.halide-contours {
+  background-image: repeating-radial-gradient(
+    circle at 50% 50%,
+    transparent 0,
+    transparent 40px,
+    hsla(var(--foreground), 0.07) 41px,
+    transparent 42px
+  );
+}
+@keyframes halide-enter {
+  from {
+    opacity: 0;
+    transform: rotateX(90deg) rotateZ(0deg) scale(calc(var(--fit, 1) * 0.8));
+  }
+}
+.halide-scroll-hint {
+  background: linear-gradient(to bottom, hsl(var(--muted-foreground)), transparent);
+  animation: halide-flow 2s ease-in-out infinite;
+}
+@keyframes halide-flow {
+  0%, 100% { transform: scaleY(0); transform-origin: top; }
+  50% { transform: scaleY(1); transform-origin: top; }
+  51% { transform: scaleY(1); transform-origin: bottom; }
+}
+
 /* Reduced motion: clamp CSS animation and transition (frontend.md §8). */
 @media (prefers-reduced-motion: reduce) {
   *,
