@@ -57,7 +57,7 @@ function SendAnimation({ reduced, onComplete }: AnimProps) {
       <ul>
         {LIST.map((r, i) => (
           <li key={r.addr} className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5 text-sm">
-            <span className="font-mono tabular text-foreground">{r.addr}</span>
+            <span className="shrink-0 whitespace-nowrap font-mono tabular text-foreground">{r.addr}</span>
             {f > i ? (
               <span className={`animate-fade-in-blur rounded-full border px-2 py-0.5 text-xs ${r.status === "delivered" ? "border-delivered/40 text-delivered" : "border-waiting/40 text-waiting"}`}>
                 {r.chip}

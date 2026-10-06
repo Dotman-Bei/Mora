@@ -15,9 +15,12 @@ const ROWS: Array<{ name: string; addr: string; amount: bigint; status: Status; 
 export function ProductScreen() {
   return (
     <div className="w-full border border-border bg-background text-left" role="img" aria-label="Illustration: a Mora payout of five payments, three delivered and two waiting">
-      <div className="flex items-center justify-between border-b border-border px-5 py-3">
-        <span className="text-sm text-foreground">Contributor payout · October</span>
-        <span className="text-xs text-muted-foreground">1 signature</span>
+      <div className="flex items-baseline justify-between gap-3 border-b border-border px-5 py-3">
+        <span className="min-w-0 truncate text-sm text-foreground">
+          <span className="sm:hidden">October payout</span>
+          <span className="hidden sm:inline">Contributor payout · October</span>
+        </span>
+        <span className="shrink-0 whitespace-nowrap text-xs text-muted-foreground">1 signature</span>
       </div>
       <div className="grid grid-cols-3 border-b border-border text-xs text-muted-foreground">
         <Stat label="Delivered" value="3" />

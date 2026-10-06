@@ -21,13 +21,13 @@ export function PainsBento() {
     <>
       <SectionHeader title={p.title} subtitle={p.subtitle} />
       <div className="space-y-4">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-3">
           {[a, b, c].map((x) => x && <Card key={x.title} {...x} />)}
         </div>
-        <div className="grid gap-4 xl:grid-cols-10">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-10">
           {d ? <Card {...d} className="xl:col-span-3" /> : null}
           {e ? <Card {...e} className="xl:col-span-3" /> : null}
-          <div className="group relative border border-border bg-secondary p-6 transition-colors hover:border-muted-foreground xl:col-span-4" tabIndex={0}>
+          <div className="group relative border border-border bg-secondary p-6 transition-colors hover:border-muted-foreground md:col-span-2 xl:col-span-4" tabIndex={0}>
             <div className="space-y-2 group-hover:hidden group-focus:hidden">
               <Eyebrow>{p.wide.before.eyebrow}</Eyebrow>
               <p className="text-base text-foreground sm:text-lg">{p.wide.before.title}</p>
@@ -78,7 +78,7 @@ export function Guarantees() {
             </li>
           ))}
         </ul>
-        <Link href={g.link.href} className="mt-6 inline-flex items-center gap-1 text-sm text-foreground underline-offset-4 hover:underline">
+        <Link href={g.link.href} className="mt-4 inline-flex min-h-10 items-center gap-1 text-sm text-foreground underline-offset-4 hover:underline sm:mt-6 sm:min-h-0">
           {g.link.label} <span aria-hidden>→</span>
         </Link>
       </div>
@@ -98,7 +98,7 @@ export function WalletsRow() {
               href={w.href}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center rounded-full border border-border px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:border-muted-foreground hover:text-foreground"
+              className="inline-flex min-h-10 items-center rounded-full border border-border px-3.5 py-1.5 text-sm sm:min-h-0 sm:px-3 text-muted-foreground transition-colors hover:border-muted-foreground hover:text-foreground"
             >
               {w.name}
             </a>

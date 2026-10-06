@@ -115,7 +115,7 @@ export default function IntegratePage() {
           {partner ? (
             <p className="text-sm text-muted-foreground">
               Running on testnet as{" "}
-              <a className="font-mono text-foreground underline-offset-4 hover:underline" href={`https://stellar.expert/explorer/testnet/contract/${partner.contractId}`} target="_blank" rel="noreferrer">
+              <a className="break-all font-mono text-foreground underline-offset-4 hover:underline" href={`https://stellar.expert/explorer/testnet/contract/${partner.contractId}`} target="_blank" rel="noreferrer">
                 {partner.contractId}
               </a>
               . Its payments land in the same Mora inbox.
