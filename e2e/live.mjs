@@ -86,8 +86,10 @@ await check("landing renders every section", async () => {
   if (!/Payments that\s*wait/.test(h1 ?? "")) throw new Error(`h1 was "${h1}"`);
   await page.locator("header").getByText("Testnet").first().waitFor();
   await page.getByText(/RPC healthy/).waitFor({ timeout: 20_000 });
-  const numbers = await page.getByText(/so far/).textContent({ timeout: 20_000 });
-  return numbers?.trim();
+  // The numbers line comes from the index and is hidden without one (no
+  // placeholder figures), so its absence is only reported, not failed.
+  const numbers = await page.getByText(/so far/).textContent({ timeout: 20_000 }).catch(() => null);
+  return numbers?.trim() ?? "numbers hidden (no index on this deployment)";
 }, page);
 
 await check("theme toggle switches to dark and back", async () => {
