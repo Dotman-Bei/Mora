@@ -1,6 +1,6 @@
 "use client";
 
-import { getConfig, type NetworkId } from "mora-sdk";
+import type { NetworkId } from "mora-sdk/network";
 import { useEffect, useState } from "react";
 import { getNetwork } from "@/lib/networks";
 
@@ -10,7 +10,9 @@ export function LiveConfig({ network }: { network: NetworkId }) {
   useEffect(() => {
     const net = getNetwork(network);
     if (!net) return setState("unknown");
-    getConfig(net)
+    // Load the SDK after the page is up: this check is the only chain call here.
+    import("mora-sdk")
+      .then(({ getConfig }) => getConfig(net))
       .then((c) => setState(c.grace_ledgers === net.graceLedgers && c.max_items === net.maxItems ? "match" : "mismatch"))
       .catch(() => setState("unknown"));
   }, [network]);

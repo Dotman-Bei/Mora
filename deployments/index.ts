@@ -1,7 +1,7 @@
 // Deployment records, one per network. Contract IDs live here and nowhere
 // else (PRD §22.3). Mainnet stays unlisted until mainnet.json says it is
 // deployed; the app never shows a network it can't use (PRD §22.6).
-import type { DeploymentFile } from "mora-sdk";
+import type { DeploymentFile } from "mora-sdk/network";
 import mainnet from "./mainnet.json";
 import testnet from "./testnet.json";
 

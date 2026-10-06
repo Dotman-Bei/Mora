@@ -4,6 +4,7 @@
 
 export * from "./amount";
 export * from "./address";
+export * from "./format";
 export * from "./network";
 export * from "./rpc";
 export * from "./probe";

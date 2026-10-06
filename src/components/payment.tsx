@@ -1,4 +1,6 @@
-import { formatAmount, shortAddress, type MoraAsset } from "mora-sdk";
+import { formatAmount } from "mora-sdk/amount";
+import { shortAddress } from "mora-sdk/format";
+import type { MoraAsset } from "mora-sdk/network";
 import type { ReactNode } from "react";
 
 // The product's words (PRD §8). "Waiting" always comes with a reason;

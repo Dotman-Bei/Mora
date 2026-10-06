@@ -17,7 +17,3 @@ export function isPayable(input: string): boolean {
   return k === "account" || k === "contract";
 }
 
-/** GABC…WXYZ */
-export function shortAddress(a: string, head = 4, tail = 4): string {
-  return a.length <= head + tail + 1 ? a : `${a.slice(0, head)}…${a.slice(-tail)}`;
-}

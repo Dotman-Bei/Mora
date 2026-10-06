@@ -1,4 +1,4 @@
-import { networkFromDeployment, type MoraNetwork, type NetworkId } from "mora-sdk";
+import { networkFromDeployment, type MoraNetwork, type NetworkId } from "mora-sdk/network";
 import { deployments } from "../../deployments";
 
 function urls(env: string | undefined, fallback: string[]): string[] {
