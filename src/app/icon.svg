@@ -1,9 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
   <style>
-    .f { fill: #121212 }
-    @media (prefers-color-scheme: dark) { .f { fill: #fafafa } }
+    .r { fill: #121212 } .h { fill: #884c07 }
+    @media (prefers-color-scheme: dark) { .r { fill: #fafafa } .h { fill: #f5b13d } }
   </style>
-  <rect class="f" x="3" y="5" width="26" height="2"/>
-  <rect class="f" x="3" y="25" width="26" height="2"/>
-  <rect class="f" x="10" y="11.5" width="12" height="9"/>
+  <rect class="r" x="1" y="2" width="9" height="2"/>
+  <rect class="h" x="5" y="5" width="6" height="6"/>
+  <rect class="r" x="6" y="12" width="9" height="2"/>
 </svg>

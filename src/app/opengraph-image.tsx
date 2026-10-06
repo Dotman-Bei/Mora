@@ -19,10 +19,11 @@ export default async function Image() {
     (
       <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", background: "#f7f6f3", padding: 72 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", width: 40, height: 40 }}>
-            <div style={{ height: 2, background: "#121212" }} />
-            <div style={{ alignSelf: "center", width: 16, height: 12, background: "#121212" }} />
-            <div style={{ height: 2, background: "#121212" }} />
+          {/* The mark (public/brand/mora-mark-color.svg) at 4px per unit. */}
+          <div style={{ display: "flex", position: "relative", width: 56, height: 48 }}>
+            <div style={{ position: "absolute", left: 0, top: 0, width: 36, height: 8, background: "#121212" }} />
+            <div style={{ position: "absolute", left: 16, top: 12, width: 24, height: 24, background: "#884c07" }} />
+            <div style={{ position: "absolute", left: 20, top: 40, width: 36, height: 8, background: "#121212" }} />
           </div>
           <div style={{ fontFamily: "Sans", fontSize: 34, color: "#121212" }}>mora</div>
         </div>

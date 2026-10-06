@@ -139,3 +139,12 @@ an audit. The mainnet configuration (Circle USDC/EURC, SACs verified on chain)
 and the owner-run deploy script stay in the repository, unused, for after an
 audit (PRD §17.1). The app lists mainnet only if `deployments/mainnet.json` says
 it is deployed, so nothing mainnet-related is reachable.
+
+## D-016 · Logo colour is the product's Waiting colour
+
+frontend.md gives the interface no brand colour. The logo still needed a colour
+version, so it borrows the one colour the product already owns: the Waiting
+status (`#884c07` light, `#f5b13d` dark), for the held payment, the thing Mora
+is about. The site header keeps the one-colour mark (colour stays in product
+UI); the colour mark is for the favicon, app icon, social card and anywhere the
+brand stands alone. Files and rules: `public/brand/README.md`.

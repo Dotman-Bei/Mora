@@ -18,11 +18,16 @@ const s = (p: P) => ({
 });
 
 export const Icons = {
-  /** The Mora mark: a payment held between two hairlines. */
+  /**
+   * The Mora mark: the sender's rail, the payment held, the recipient's rail.
+   * Same geometry as public/brand/mora-mark.svg: a 14x12 grid, drawn at
+   * whole multiples (28x24 in the header) so every edge is a whole pixel.
+   */
   Logo: (p: P) => (
-    <svg {...s(p)} strokeLinecap="butt">
-      <path d="M3 4.5h18M3 19.5h18" />
-      <rect x="7.5" y="8.5" width="9" height="7" fill="currentColor" stroke="none" />
+    <svg width={28} height={24} viewBox="0 0 14 12" fill="currentColor" aria-hidden {...p}>
+      <rect x="0" y="0" width="9" height="2" />
+      <rect x="4" y="3" width="6" height="6" />
+      <rect x="5" y="10" width="9" height="2" />
     </svg>
   ),
   send: (p: P) => (
