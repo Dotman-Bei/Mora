@@ -5,7 +5,8 @@
 // Real browser (installed Chrome via playwright-core), real testnet
 // transactions, fresh throwaway keys, and a fake Freighter extension that
 // answers the extension's message protocol. Takes about 7 minutes because one
-// payment must pass its 5-minute return window.
+// payment must pass its 5-minute return window. Uses the site's faucet once
+// per run, which allows 5 requests per hour per IP.
 import { mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
@@ -60,13 +61,17 @@ page.on("pageerror", (e) => errors.push(String(e)));
 async function connectAs(name) {
   wallet.use(name);
   await page.goto(`${BASE}/send`, { waitUntil: "load" });
+  // Wait for hydration: the header restores a remembered address after mount,
+  // and the footer's live RPC status only appears once effects have run.
+  await page.getByText(/RPC (healthy|unreachable)/).waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(500);
+  // Disconnect whoever is connected, then connect fresh: the most direct path.
   const menu = page.locator("header").getByRole("button", { name: /…/ }).first();
   if (await menu.isVisible().catch(() => false)) {
     await menu.click();
-    await page.getByRole("button", { name: "Switch wallet" }).click();
-  } else {
-    await page.getByRole("button", { name: "Connect wallet" }).first().click();
+    await page.getByRole("button", { name: "Disconnect" }).click();
   }
+  await page.getByRole("button", { name: "Connect wallet" }).first().click();
   await page.getByText("Freighter", { exact: true }).first().click({ timeout: 30_000 });
   await page.locator("header").getByText(short(wallet.publicKey)).first().waitFor({ timeout: 30_000 });
 }
@@ -109,7 +114,16 @@ await check("connect wallet through the kit modal", async () => {
 await check("faucet pays through Mora, then claim adds TESTUSD", async () => {
   await page.goto(BASE, { waitUntil: "load" });
   await page.getByRole("button", { name: "Get 100 TESTUSD" }).click();
-  await page.getByText("100 TESTUSD is waiting for you.").waitFor({ timeout: 60_000 });
+  const outcome = await Promise.race([
+    page.getByText("100 TESTUSD is waiting for you.").waitFor({ timeout: 60_000 }).then(() => "ok"),
+    page.getByText(/faucet is resting|had enough TESTUSD/).waitFor({ timeout: 60_000 }).then(() => "limited"),
+  ]);
+  if (outcome === "limited") {
+    // Every later step needs this TESTUSD. Stop clearly instead of cascading.
+    console.log("The faucet's per-IP limit (5 per hour) is reached. That is the rate limiter working; run again in an hour.");
+    await browser.close();
+    process.exit(2);
+  }
   await page.getByRole("link", { name: "Claim it" }).click();
   await page.getByRole("button", { name: "Claim", exact: true }).click({ timeout: 60_000 });
   await page.getByText("It's yours.").waitFor({ timeout: 90_000 });
@@ -187,8 +201,16 @@ await check("inbox: read-only view of another address", async () => {
 }, page);
 
 await check("inbox: Claim all takes two payments in one signature", async () => {
-  const r = await fetch(`${BASE}/api/v1/faucet`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ address: D }) });
-  if (!r.ok) throw new Error(`faucet ${r.status} ${await r.text()}`);
+  // A second sender for D: B sends 1 TESTUSD through the normal send flow.
+  // (Not the faucet, whose per-IP hourly limit repeated runs would hit.)
+  await connectAs("B");
+  await page.getByRole("radio", { name: /TESTUSD/ }).click();
+  await page.getByPlaceholder("G…").fill(D);
+  await page.getByPlaceholder("0.00").fill("1");
+  await page.getByText("Will wait: no TESTUSD trustline").waitFor({ timeout: 30_000 });
+  await page.getByRole("button", { name: "Review" }).click();
+  await page.getByRole("button", { name: "Sign and send" }).click({ timeout: 60_000 });
+  await page.getByText("0 delivered, 1 waiting, 0 failed.").waitFor({ timeout: 90_000 });
   await connectAs("D");
   await page.goto(`${BASE}/inbox`, { waitUntil: "load" });
   await page.getByText("2 waiting payments").waitFor({ timeout: 90_000 });
@@ -227,10 +249,17 @@ await check("activity: return the unclaimed payment after the window", async () 
   }
   await page.goto(`${BASE}/activity`, { waitUntil: "load" });
   await page.getByText(/Checked at ledger/).waitFor({ timeout: 120_000 });
-  await page.getByRole("button", { name: "Return", exact: true }).first().click({ timeout: 30_000 });
-  // Wait for the row itself to say Returned; the button only changes label
-  // while signing, and leaving the page early would cancel the transaction.
-  await page.locator("main ul.border").getByText("Returned", { exact: true }).first().waitFor({ timeout: 120_000 });
+  // C's own row: other payments may be returnable too.
+  const row = page.locator("main ul.border > li").filter({ hasText: `${C.slice(0, 6)}…${C.slice(-6)}` });
+  await row.getByRole("button", { name: "Return", exact: true }).click({ timeout: 30_000 });
+  // Wait for the row to say Returned; the button only relabels while
+  // signing, and leaving the page early would cancel the transaction.
+  await page
+    .locator("main ul.border > li")
+    .filter({ hasText: `${C.slice(0, 6)}…${C.slice(-6)}` })
+    .getByText("Returned", { exact: true })
+    .first()
+    .waitFor({ timeout: 120_000 });
   await page.goto(claimUrl(A, C), { waitUntil: "load" });
   await page.getByText("Returned to the sender").waitFor({ timeout: 120_000 });
 }, page);
