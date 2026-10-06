@@ -2,6 +2,8 @@ import Link from "next/link";
 import { site } from "@/lib/site.config";
 import { Icons } from "../icons";
 import { ButtonLink } from "../ui";
+import { HalideTopoHero, ScrollHint } from "../ui/halide-topo-hero";
+import { Amount, StatusMark } from "../payment";
 import { ProductScreen } from "./product-screen";
 
 export function Hero() {
@@ -41,15 +43,26 @@ export function Hero() {
         </ul>
       </div>
 
-      {/* Visual: grid ground, product screen tilted on desktop, fading into the page. */}
-      <div className="relative mt-14 w-full max-w-[1400px] sm:mt-16">
-        <div className="grid-pattern absolute inset-0 opacity-40 [mask-image:linear-gradient(to_bottom,transparent,black_20%,black)] dark:opacity-25" aria-hidden />
-        <div className="relative flex h-[440px] items-start justify-center overflow-hidden px-2 pt-10 sm:h-[520px] lg:h-[600px] lg:pt-16 3xl:h-[760px]">
-          <div className="w-full max-w-[85%] animate-blur-in sm:max-w-2xl lg:[transform:rotate(-2deg)_skewY(1deg)] lg:[filter:drop-shadow(0_30px_60px_rgba(0,0,0,.18))] dark:lg:[filter:drop-shadow(0_30px_60px_rgba(0,0,0,.6))] 2xl:max-w-3xl">
-            <ProductScreen />
-          </div>
-          <div className="fade-bottom absolute inset-x-0 bottom-0 h-1/5" aria-hidden />
+      {/* Visual: Mora's own screens stacked on a tilted stage over contour lines
+          (HalideTopoHero), fading into the page. */}
+      <div className="relative mt-10 w-full max-w-[1400px] sm:mt-14">
+        <div className="relative h-[300px] overflow-hidden sm:h-[460px] lg:h-[600px] 3xl:h-[720px]">
+          <HalideTopoHero
+            className="absolute inset-0"
+            label="Illustration: a Mora payout of five payments, three delivered and two waiting, with one waiting payment's claim card"
+            layers={[
+              <div key="plate" className="grid-pattern h-full w-full border border-border bg-card" />,
+              <div key="results" className="absolute left-[5%] top-[6%] w-[56%] shadow-[0_24px_48px_-24px_rgba(0,0,0,.25)]">
+                <ProductScreen />
+              </div>,
+              <div key="claim" className="absolute right-[4%] top-[30%] w-[31%] shadow-[0_24px_48px_-24px_rgba(0,0,0,.3)]">
+                <ClaimCardMini />
+              </div>,
+            ]}
+          />
+          <div className="fade-bottom absolute inset-x-0 bottom-0 h-1/4" aria-hidden />
         </div>
+        <ScrollHint className="mx-auto mt-2 hidden sm:block" />
       </div>
     </section>
   );
@@ -86,5 +99,23 @@ export function FeatureTile({ href, icon, name, descriptor }: { href: string; ic
         <span className="block text-muted-foreground">{descriptor}</span>
       </span>
     </Link>
+  );
+}
+
+/** The waiting payment from the illustration, as its recipient sees it. */
+function ClaimCardMini() {
+  return (
+    <div className="border border-border bg-background text-left">
+      <div className="space-y-3 p-4">
+        <StatusMark status="waiting" reason="no USDC trustline" className="text-xs" />
+        <p className="text-3xl">
+          <Amount value={500_000_000n} />
+        </p>
+        <p className="text-xs text-muted-foreground">USDC · for Kunle</p>
+      </div>
+      <div className="border-t border-border p-4">
+        <span className="block h-9 bg-primary text-center text-sm leading-9 text-primary-foreground">Claim</span>
+      </div>
+    </div>
   );
 }
