@@ -11,7 +11,7 @@ export function Hero() {
       <div className="mx-auto max-w-3xl space-y-5 text-center lg:space-y-6">
         <Link
           href={h.pill.href}
-          className="inline-flex items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-muted-foreground hover:text-foreground"
+          className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5 text-xs sm:min-h-0 text-muted-foreground transition-colors hover:border-muted-foreground hover:text-foreground"
         >
           {h.pill.label} <span aria-hidden>→</span>
         </Link>
