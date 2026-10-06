@@ -87,7 +87,11 @@ export function ClaimView({ params }: { params: Partial<ClaimLinkParams> }) {
         }
         // The index answers in one request; RPC history is the fallback, so
         // the link still works with every Mora server down (PRD §6.3).
-        const res = (await indexResolution(net.id, key).catch(() => null)) ?? (await findResolution(net, key));
+        // The contract already says nothing waits. The index (one request)
+        // says how it ended; if the index can't answer, RPC history does, so
+        // links still work with Mora's servers down (PRD §6.3).
+        const idx = await indexResolution(net.id, key).catch(() => undefined);
+        const res = idx === undefined ? await findResolution(net, key) : idx;
         if (!alive) return;
         setLoad(res ? { kind: "resolved", res, probe } : { kind: "empty" });
       } catch (e) {
@@ -148,7 +152,10 @@ export function ClaimView({ params }: { params: Partial<ClaimLinkParams> }) {
   );
 }
 
-/** How the payment ended, from Mora's index. Null when the index can't say. */
+/**
+ * How the payment ended, from Mora's index: a resolution, or null when the
+ * index has no record of one. Throws when the index can't answer.
+ */
 async function indexResolution(network: string, key: { from: string; to: string; token: string }): Promise<Resolution | null> {
   const statuses = ["claimed", "returned", "moved"] as const;
   const pages = await Promise.all(
