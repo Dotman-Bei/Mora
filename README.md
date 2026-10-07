@@ -113,6 +113,16 @@ cd contracts && cargo test && stellar contract build
 2. Import the repo into Vercel and set the variables above. [vercel.json](vercel.json) schedules the daily sync.
 3. Mainnet (after an audit, not part of the hackathon build): fund a key you control, then `./scripts/deploy-mainnet.sh <key-name> <rpc-url>`. It refuses to deploy any wasm other than the one verified on testnet, and writes the contract ID to `deployments/mainnet.json`.
 
+## Running a pilot
+
+Send TESTUSD to real people from a **fresh** sender account (so the failed-transaction count is meaningful), then:
+
+```bash
+node scripts/pilot-report.mjs <sender G-address> --since 2026-10-07
+```
+
+It prints the PRD §16 numbers as a Markdown table, with denominators and transaction links: delivered, waited, claimed, returned, still waiting, median time to claim, and failed sender transactions (target 0). Label it "builder-run pilot".
+
 ## What Mora doesn't protect
 
 - **The contract is unaudited**, which is why Mora is testnet-only. When it reaches mainnet after an audit, the app will cap payments at first (100 USDC, 100 EURC, 500 XLM per batch); contracts calling Mora directly are not capped.
