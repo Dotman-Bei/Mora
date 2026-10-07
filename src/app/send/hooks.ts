@@ -12,8 +12,8 @@ import {
   type NetworkProbe,
   type Readiness,
 } from "mora-sdk";
-import { useEffect, useState } from "react";
-import type { ParsedRow } from "@/lib/recipients";
+import { useEffect, useRef, useState } from "react";
+import { FEDERATION_NAME, type NameLookup, type ParsedRow } from "@/lib/recipients";
 
 export function useProbe(net: MoraNetwork) {
   const [probe, setProbe] = useState<NetworkProbe | null>(null);
@@ -104,4 +104,49 @@ export function useReadiness(net: MoraNetwork, asset: MoraAsset | undefined, row
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [net, key, probe]);
   return state;
+}
+
+/**
+ * Resolve federation names (name*domain, SEP-2) found in the recipients text.
+ * Each name is looked up once; names that need a memo are refused, because
+ * Soroban payments can't carry one.
+ */
+export function useFederation(text: string) {
+  const [lookups, setLookups] = useState<Map<string, NameLookup>>(() => new Map());
+  // Names already requested; read only inside the effect.
+  const requested = useRef(new Set<string>());
+  const names = [...new Set(text.split(/[\s,;]+/).filter((t) => FEDERATION_NAME.test(t)).map((t) => t.toLowerCase()))];
+  const key = names.join("|");
+
+  useEffect(() => {
+    const todo = names.filter((n) => !requested.current.has(n));
+    if (!todo.length) return;
+    const set = (n: string, v: NameLookup) => setLookups((prev) => new Map(prev).set(n, v));
+    const t = setTimeout(async () => {
+      for (const n of todo) {
+        requested.current.add(n);
+        set(n, { status: "pending" });
+      }
+      const { Federation } = await import("@stellar/stellar-sdk");
+      await Promise.all(
+        todo.map(async (n) => {
+          try {
+            const r = await Federation.Server.resolve(n);
+            set(
+              n,
+              r.memo
+                ? { status: "error", message: "This name needs a memo (usually an exchange), and Soroban payments can't carry one." }
+                : { status: "ok", account: r.account_id },
+            );
+          } catch {
+            set(n, { status: "error", message: "Couldn't find this name. Check the spelling, or use the G-address." });
+          }
+        }),
+      );
+    }, 400);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
+  return lookups;
 }

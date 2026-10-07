@@ -35,3 +35,33 @@ describe("parseRecipients", () => {
     expect(parseRecipients(`${a}`, "0").rows[0]?.error).toBeTruthy();
   });
 });
+
+describe("federation names", () => {
+  const name = "ada*example.com";
+  it("waits for a lookup, then uses the resolved account and keeps the name", async () => {
+    const { parseRecipients } = await import("../recipients");
+    const pending = parseRecipients(`${name}, 5`);
+    expect(pending.rows[0]?.pending).toBe(true);
+    const ok = parseRecipients(`${name}, 5`, undefined, new Map([[name, { status: "ok" as const, account: a }]]));
+    expect(ok.rows[0]).toMatchObject({ address: a, label: name, amount: 50_000_000n });
+    expect(ok.rows[0]?.error).toBeUndefined();
+  });
+  it("shows why a name can't be used", async () => {
+    const { parseRecipients } = await import("../recipients");
+    const r = parseRecipients(`${name}, 5`, undefined, new Map([[name, { status: "error" as const, message: "needs a memo" }]]));
+    expect(r.rows[0]?.error).toBe("needs a memo");
+  });
+  it("merges a name with the same account typed as an address", async () => {
+    const { parseRecipients } = await import("../recipients");
+    const r = parseRecipients(`${name}, 1\n${a}, 2`, undefined, new Map([[name, { status: "ok" as const, account: a }]]));
+    expect(r.rows).toHaveLength(1);
+    expect(r.rows[0]?.amount).toBe(30_000_000n);
+  });
+});
+
+describe("csvToList", () => {
+  it("keeps the first two columns and drops the header", async () => {
+    const { csvToList } = await import("../recipients");
+    expect(csvToList(`address,amount,note\n${a},50,first\n"${b}","12.5"\n\nada*example.com;1`)).toBe(`${a}, 50\n${b}, 12.5\nada*example.com, 1`);
+  });
+});
