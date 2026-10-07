@@ -1,122 +1,233 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { Syncopate } from "next/font/google";
+import Link from "next/link";
+import { useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 
-/**
- * A tilted 3D stage of stacked layers over topographic contour lines, with an
- * entrance tilt and pointer parallax. Adapted from the "Halide" hero to Mora's
- * system (frontend.md): no colour of its own, hairlines, square corners, and
- * the content is whatever layers the caller passes (Mora passes its own
- * product screens, back to front).
- *
- * Safe by construction:
- * - CSS is scoped to the component; it never touches :root tokens.
- * - The entrance is a CSS animation, so content shows even without JS, and the
- *   global reduced-motion rule snaps it to rest.
- * - Parallax runs only for a fine pointer that can hover, never for touch or
- *   reduced motion, and is throttled to one update per frame.
- * - The tilt is gentler below md so phones keep a readable stage.
- * - Layers are composed on a fixed 800x500 stage that scales to fit its
- *   container, so content keeps its proportions at every width.
- */
-const STAGE_W = 800;
+// The Halide hero, used as Mora's landing hero as given (owner's choice; see
+// DECISIONS D-017): dark ground, Syncopate, orange accent, grayscale photo
+// layers, film grain, contour rings and mouse parallax.
+//
+// Changed only so it can live inside a page:
+// - styles are scoped under .halide-body (the original wrote :root, which
+//   overrode the site's --accent everywhere, and used global class names);
+// - grain and interface use position:absolute, not fixed, so they stay in the
+//   hero instead of covering the whole site;
+// - width is 100%, not 100vw, so the page doesn't scroll sideways;
+// - reduced motion skips the entrance and the parallax (PRD §14);
+// - copy is Mora's, and the CTA links to /send.
+
+const syncopate = Syncopate({ weight: ["400", "700"], subsets: ["latin"], display: "swap" });
 
 export interface HalideTopoHeroProps {
-  /** Layers from back to front. Each fills the stage; position content inside it. */
-  layers: ReactNode[];
-  /** Topographic contour rings floating above the layers. */
-  contours?: boolean;
-  /** Distance between layers along the Z axis, in px. */
-  depth?: number;
-  /** Accessible description of the whole illustration. */
-  label: string;
+  brand: string;
+  readouts: [string, string];
+  title: [string, string];
+  footnote: [string, string];
+  cta: { label: string; href: string };
   className?: string;
 }
 
-export function HalideTopoHero({ layers, contours = true, depth = 28, label, className }: HalideTopoHeroProps) {
-  const stageRef = useRef<HTMLDivElement>(null);
+export function HalideTopoHero({ brand, readouts, title, footnote, cta, className }: HalideTopoHeroProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
-  const layerRefs = useRef<Array<HTMLDivElement | null>>([]);
-
-  // Fit the 800x500 composition to the container's width.
-  useEffect(() => {
-    const stage = stageRef.current;
-    const canvas = canvasRef.current;
-    if (!stage || !canvas) return;
-    const fit = () => canvas.style.setProperty("--fit", String(Math.min(1, (stage.clientWidth * 0.94) / STAGE_W)));
-    fit();
-    const ro = new ResizeObserver(fit);
-    ro.observe(stage);
-    return () => ro.disconnect();
-  }, []);
+  const layersRef = useRef<Array<HTMLDivElement | null>>([]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (!finePointer || reduced) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      canvas.style.opacity = "1";
+      canvas.style.transform = "rotateX(55deg) rotateZ(-25deg) scale(1)";
+      return;
+    }
 
-    let frame = 0;
-    let px = 0;
-    let py = 0;
-    const apply = () => {
-      frame = 0;
-      const css = getComputedStyle(canvas);
-      const tx = parseFloat(css.getPropertyValue("--tilt-x")) || 0;
-      const tz = parseFloat(css.getPropertyValue("--tilt-z")) || 0;
-      // Same response as the original: a few degrees of rotation, layers drift
-      // further the closer they are.
-      canvas.style.transform = `rotateX(${tx + py / 2}deg) rotateZ(${tz + px / 2}deg) scale(var(--fit, 1))`;
-      layerRefs.current.forEach((layer, i) => {
+    // Mouse parallax
+    const handleMouseMove = (e: MouseEvent) => {
+      const x = (window.innerWidth / 2 - e.pageX) / 25;
+      const y = (window.innerHeight / 2 - e.pageY) / 25;
+      canvas.style.transform = `rotateX(${55 + y / 2}deg) rotateZ(${-25 + x / 2}deg)`;
+      layersRef.current.forEach((layer, index) => {
         if (!layer) return;
-        const k = (i + 1) * 0.2;
-        layer.style.transform = `translateZ(${(i + 1) * depth}px) translate(${px * k}px, ${py * k}px)`;
+        const depth = (index + 1) * 15;
+        const moveX = x * (index + 1) * 0.2;
+        const moveY = y * (index + 1) * 0.2;
+        layer.style.transform = `translateZ(${depth}px) translate(${moveX}px, ${moveY}px)`;
       });
     };
-    const onMove = (e: PointerEvent) => {
-      if (e.pointerType !== "mouse") return;
-      px = Math.max(-12, Math.min(12, (window.innerWidth / 2 - e.clientX) / 25));
-      py = Math.max(-12, Math.min(12, (window.innerHeight / 2 - e.clientY) / 25));
-      if (!frame) frame = requestAnimationFrame(apply);
-    };
-    // Start following the pointer once the entrance has settled.
-    const start = window.setTimeout(() => window.addEventListener("pointermove", onMove, { passive: true }), 1800);
+
+    // Entrance animation
+    canvas.style.opacity = "0";
+    canvas.style.transform = "rotateX(90deg) rotateZ(0deg) scale(0.8)";
+    const timeout = setTimeout(() => {
+      canvas.style.transition = "all 2.5s cubic-bezier(0.16, 1, 0.3, 1)";
+      canvas.style.opacity = "1";
+      canvas.style.transform = "rotateX(55deg) rotateZ(-25deg) scale(1)";
+    }, 300);
+
+    window.addEventListener("mousemove", handleMouseMove);
     return () => {
-      window.clearTimeout(start);
-      window.removeEventListener("pointermove", onMove);
-      if (frame) cancelAnimationFrame(frame);
+      window.removeEventListener("mousemove", handleMouseMove);
+      clearTimeout(timeout);
     };
-  }, [depth]);
+  }, []);
 
   return (
-    <div ref={stageRef} role="img" aria-label={label} className={cn("halide-stage relative flex items-center justify-center", className)}>
-      <div
-        ref={canvasRef}
-        className="halide-canvas relative h-[500px] w-[800px] shrink-0 [--tilt-x:34deg] [--tilt-z:-12deg] md:[--tilt-x:50deg] md:[--tilt-z:-20deg]"
-      >
-        {layers.map((layer, i) => (
-          <div
-            key={i}
-            ref={(el) => {
-              layerRefs.current[i] = el;
-            }}
-            className="halide-layer absolute inset-0"
-            style={{ transform: `translateZ(${(i + 1) * depth}px)` }}
-          >
-            {layer}
-          </div>
-        ))}
-        {contours ? (
-          <div aria-hidden className="halide-contours pointer-events-none absolute -inset-1/2" style={{ transform: `translateZ(${(layers.length + 1) * depth}px)` }} />
-        ) : null}
-      </div>
-    </div>
-  );
-}
+    <>
+      <style>{`
+        .halide-body {
+          --bg: #0a0a0a;
+          --silver: #e0e0e0;
+          --accent: #ff3c00;
+          --grain-opacity: 0.15;
+          position: relative;
+          background-color: var(--bg);
+          color: var(--silver);
+          overflow: hidden;
+          height: 100vh;
+          min-height: 560px;
+          width: 100%;
+          margin: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .halide-body .halide-grain {
+          position: absolute;
+          top: 0; left: 0; width: 100%; height: 100%;
+          pointer-events: none;
+          z-index: 100;
+          opacity: var(--grain-opacity);
+        }
+        .halide-body .viewport {
+          perspective: 2000px;
+          width: 100%; height: 100%;
+          display: flex; align-items: center; justify-content: center;
+          overflow: hidden;
+        }
+        .halide-body .canvas-3d {
+          position: relative;
+          width: 800px; height: 500px;
+          transform-style: preserve-3d;
+          transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .halide-body .layer {
+          position: absolute;
+          inset: 0;
+          border: 1px solid rgba(224, 224, 224, 0.1);
+          background-size: cover;
+          background-position: center;
+          transition: transform 0.5s ease;
+        }
+        .halide-body .layer-1 { background-image: url('https://cdn.21st.dev/assets/mirror/e5/e5ef2d30267a4e7f81bc0a61283385f0e59c348d8e69a017f1a87b5323fd8abc.jpg'); filter: grayscale(1) contrast(1.2) brightness(0.5); }
+        .halide-body .layer-2 { background-image: url('https://cdn.21st.dev/assets/mirror/80/80f63f867cb6db0e217d01b6b23e0d623b38d7791dc6a5c6b647744541e4f71d.jpg'); filter: grayscale(1) contrast(1.1) brightness(0.7); opacity: 0.6; mix-blend-mode: screen; }
+        .halide-body .layer-3 { background-image: url('https://cdn.21st.dev/assets/mirror/59/597353f775e864ce7ab427b39deecf97b8de0560e30cb3749da756c896a17023.jpg'); filter: grayscale(1) contrast(1.3) brightness(0.8); opacity: 0.4; mix-blend-mode: overlay; }
+        .halide-body .contours {
+          position: absolute;
+          width: 200%; height: 200%;
+          top: -50%; left: -50%;
+          background-image: repeating-radial-gradient(circle at 50% 50%, transparent 0, transparent 40px, rgba(255,255,255,0.05) 41px, transparent 42px);
+          transform: translateZ(120px);
+          pointer-events: none;
+        }
+        .halide-body .interface-grid {
+          position: absolute;
+          inset: 0;
+          padding: 6rem 4rem 4rem;
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          grid-template-rows: auto 1fr auto;
+          z-index: 10;
+          pointer-events: none;
+        }
+        .halide-body .hero-title {
+          grid-column: 1 / -1;
+          align-self: center;
+          font-size: clamp(3rem, 10vw, 10rem);
+          line-height: 0.85;
+          letter-spacing: -0.04em;
+          mix-blend-mode: difference;
+          /* The original's h1 renders at the browser default (bold). */
+          font-weight: 700;
+          margin: 0;
+        }
+        .halide-body .cta-button {
+          pointer-events: auto;
+          background: var(--silver);
+          color: var(--bg);
+          padding: 1rem 2rem;
+          text-decoration: none;
+          font-weight: 700;
+          clip-path: polygon(0 0, 100% 0, 100% 70%, 85% 100%, 0 100%);
+          transition: 0.3s;
+        }
+        .halide-body .cta-button:hover { background: var(--accent); transform: translateY(-5px); }
+        .halide-body .cta-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+        .halide-body .scroll-hint {
+          position: absolute;
+          bottom: 2rem; left: 50%;
+          width: 1px; height: 60px;
+          background: linear-gradient(to bottom, var(--silver), transparent);
+          animation: halide-flow 2s infinite ease-in-out;
+        }
+        @keyframes halide-flow {
+          0%, 100% { transform: scaleY(0); transform-origin: top; }
+          50% { transform: scaleY(1); transform-origin: top; }
+          51% { transform: scaleY(1); transform-origin: bottom; }
+        }
+        /* Phones: the same layout with room to breathe. */
+        @media (max-width: 640px) {
+          .halide-body .interface-grid { padding: 5.5rem 1.25rem 4.5rem; }
+          .halide-body .halide-bottom { flex-direction: column; align-items: flex-start !important; gap: 1.25rem; }
+        }
+      `}</style>
 
-/** A hairline that flows downward under the hero: there's more below. */
-export function ScrollHint({ className }: { className?: string }) {
-  return <div aria-hidden className={cn("halide-scroll-hint pointer-events-none h-14 w-px", className)} />;
+      <section className={cn("halide-body", syncopate.className, className)}>
+        {/* SVG filter for grain */}
+        <svg style={{ position: "absolute", width: 0, height: 0 }} aria-hidden>
+          <filter id="halide-grain">
+            <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves={3} />
+            <feColorMatrix type="saturate" values="0" />
+          </filter>
+        </svg>
+
+        <div className="halide-grain" style={{ filter: "url(#halide-grain)" }} aria-hidden />
+
+        <div className="interface-grid">
+          <div style={{ fontWeight: 700 }}>{brand}</div>
+          <div style={{ textAlign: "right", fontFamily: "monospace", color: "var(--accent)", fontSize: "0.7rem" }}>
+            <div>{readouts[0]}</div>
+            <div>{readouts[1]}</div>
+          </div>
+
+          <h1 className="hero-title">
+            {title[0]}
+            <br />
+            {title[1]}
+          </h1>
+
+          <div className="halide-bottom" style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+            <div style={{ fontFamily: "monospace", fontSize: "0.75rem" }}>
+              <p>{footnote[0]}</p>
+              <p>{footnote[1]}</p>
+            </div>
+            <Link href={cta.href} className="cta-button">
+              {cta.label}
+            </Link>
+          </div>
+        </div>
+
+        <div className="viewport" aria-hidden>
+          <div className="canvas-3d" ref={canvasRef}>
+            <div className="layer layer-1" ref={(el) => { layersRef.current[0] = el; }} />
+            <div className="layer layer-2" ref={(el) => { layersRef.current[1] = el; }} />
+            <div className="layer layer-3" ref={(el) => { layersRef.current[2] = el; }} />
+            <div className="contours" />
+          </div>
+        </div>
+
+        <div className="scroll-hint" aria-hidden />
+      </section>
+    </>
+  );
 }

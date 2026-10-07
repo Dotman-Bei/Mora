@@ -83,7 +83,7 @@ await check("landing renders every section", async () => {
     await page.getByRole("heading", { name: t }).first().waitFor({ timeout: 15_000 });
   }
   const h1 = await page.locator("h1").first().textContent();
-  if (!/Payments that\s*wait/.test(h1 ?? "")) throw new Error(`h1 was "${h1}"`);
+  if (!/payments\s*that\s*wait/i.test(h1 ?? "")) throw new Error(`h1 was "${h1}"`);
   await page.locator("header").getByText("Testnet").first().waitFor();
   await page.getByText(/RPC healthy/).waitFor({ timeout: 20_000 });
   // The numbers line comes from the index and is hidden without one (no

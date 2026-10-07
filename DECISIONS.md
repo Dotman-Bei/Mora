@@ -148,3 +148,16 @@ status (`#884c07` light, `#f5b13d` dark), for the held payment, the thing Mora
 is about. The site header keeps the one-colour mark (colour stays in product
 UI); the colour mark is for the favicon, app icon, social card and anywhere the
 brand stands alone. Files and rules: `public/brand/README.md`.
+
+## D-017 · Landing hero: the Halide design, as given (owner's choice)
+
+The owner chose to use the Halide hero as given rather than the version
+adapted to frontend.md. It departs from frontend.md on purpose: dark ground in
+both themes, Syncopate, an orange accent (`#ff3c00`), grayscale photo layers
+(the component's own images), film grain, monospace readouts and an angled CTA.
+Changed only so it works inside the page: styles scoped under `.halide-body`
+(the original set `--accent` on `:root`, overriding the site's token), grain and
+interface `absolute` instead of `fixed` (they would have covered the whole
+site), `100%` instead of `100vw` (no sideways scroll), reduced motion respected,
+Syncopate self-hosted through next/font, and Mora's copy in the original slots
+with the CTA linking to /send. The rest of the site keeps frontend.md.
