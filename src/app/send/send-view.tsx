@@ -28,9 +28,9 @@ import { ShareActions, TxLink } from "@/components/share";
 import { Button, Eyebrow } from "@/components/ui";
 import { addHistory, type SentRecord } from "@/lib/local-history";
 import { BETA_CAPS } from "@/lib/networks";
-import { parseRecipients, type ParsedRow } from "@/lib/recipients";
+import { csvToList, parseRecipients, type ParsedRow } from "@/lib/recipients";
 import { ledgerDate, reportTx, walletErrorMessage, xlm } from "@/lib/tx";
-import { useBalances, useProbe, useReadiness } from "./hooks";
+import { useBalances, useFederation, useProbe, useReadiness } from "./hooks";
 
 const WINDOWS = [
   { label: "5 minutes", seconds: 5 * 60, testnetOnly: true },
@@ -63,13 +63,16 @@ export function SendView() {
   const [sameAmount, setSameAmount] = useState("");
   const [windowSec, setWindowSec] = useState(7 * 86400);
 
+  // Federation names (name*domain) resolve to accounts as they're typed.
+  const fed = useFederation(mode === "one" ? oneTo : listText);
   const parsed = useMemo(() => {
-    if (mode === "one") return oneTo.trim() ? parseRecipients(`${oneTo.trim()} ${oneAmount.trim() || "?"}`) : { rows: [], notices: [] };
-    return parseRecipients(listText, same ? sameAmount : undefined);
-  }, [mode, oneTo, oneAmount, listText, same, sameAmount]);
+    if (mode === "one") return oneTo.trim() ? parseRecipients(`${oneTo.trim()} ${oneAmount.trim() || "?"}`, undefined, fed) : { rows: [], notices: [] };
+    return parseRecipients(listText, same ? sameAmount : undefined, fed);
+  }, [mode, oneTo, oneAmount, listText, same, sameAmount, fed]);
 
   const ready = useReadiness(net, asset, parsed.rows, probe);
   const chipFor = (r: ParsedRow): Readiness | "checking" | "unknown" => {
+    if (r.pending) return "checking";
     if (r.error) return r.error.startsWith("M-addresses") ? "invalid-muxed" : "invalid";
     if (ready === "unknown") return "unknown";
     return ready?.get(r.address) ?? "checking";
@@ -79,6 +82,10 @@ export function SendView() {
     .filter((r) => !r.error && r.amount !== null && ready instanceof Map && readinessGroup(ready.get(r.address) ?? "invalid") !== "blocked")
     .map((r) => ({ to: r.address, amount: r.amount as bigint }));
   const skipped = parsed.rows.length - sendable.length;
+  // What the same list would do as plain transfers: one recipient who can't
+  // receive fails the whole run (PRD §6.2, P2). From the live readiness read.
+  const waitingCount = ready instanceof Map ? sendable.filter((p) => readinessGroup(ready.get(p.to) ?? "ready") === "waiting").length : 0;
+  const withoutMora = sendable.length > 1 && waitingCount > 0 ? { total: sendable.length, waiting: waitingCount } : null;
   const total = sendable.reduce((s, p) => s + p.amount, 0n);
   const balance = balances?.get(asset?.sac ?? "");
   const cap = id === "mainnet" ? BETA_CAPS[asset?.code ?? ""] : undefined;
@@ -326,6 +333,19 @@ export function SendView() {
               aria-label="Recipients, one per line"
             />
             <div className="flex flex-wrap items-center gap-4">
+              <label className="inline-flex h-10 cursor-pointer items-center border border-border px-3 text-xs text-foreground transition-colors hover:border-muted-foreground sm:h-8">
+                Upload CSV
+                <input
+                  type="file"
+                  accept=".csv,.txt,text/csv,text/plain"
+                  className="sr-only"
+                  onChange={async (e) => {
+                    const f = e.target.files?.[0];
+                    if (f) setListText(csvToList(await f.text()));
+                    e.target.value = "";
+                  }}
+                />
+              </label>
               <label className="flex items-center gap-2 text-sm text-muted-foreground">
                 <input type="checkbox" checked={same} onChange={(e) => setSame(e.target.checked)} className="h-4 w-4 accent-current" />
                 Same amount for all
@@ -356,7 +376,16 @@ export function SendView() {
               {parsed.rows.map((r, i) => (
                 <li key={`${r.address}-${i}`} className="grid gap-2 border-b border-border px-4 py-3 last:border-b-0 sm:grid-cols-[1fr_auto_auto] sm:items-center sm:gap-4">
                   <span className="min-w-0 truncate font-mono text-sm" title={r.address}>
-                    {r.address.length > 20 ? shortAddress(r.address, 6, 6) : r.address || "—"}
+                    {r.label ? (
+                      <>
+                        <span className="font-sans">{r.label}</span>
+                        {r.address !== r.label ? <span className="text-muted-foreground"> · {shortAddress(r.address, 4, 4)}</span> : null}
+                      </>
+                    ) : r.address.length > 20 ? (
+                      shortAddress(r.address, 6, 6)
+                    ) : (
+                      r.address || "—"
+                    )}
                   </span>
                   <span className="text-sm sm:text-right">
                     {r.amount !== null ? <Amount value={r.amount} code={asset?.code} /> : <span className="text-muted-foreground">—</span>}
@@ -364,13 +393,21 @@ export function SendView() {
                   <span className="sm:text-right">
                     <ReadinessChip r={chipFor(r)} code={asset?.code ?? ""} />
                   </span>
-                  {r.error && !r.error.startsWith("Not a Stellar") ? <span className="text-xs text-muted-foreground sm:col-span-3">{r.error}</span> : null}
+                  {r.error && !r.pending && !r.error.startsWith("Not a Stellar") ? <span className="text-xs text-muted-foreground sm:col-span-3">{r.error}</span> : null}
                   {chipFor(r) === "blocked-memo" ? <span className="text-xs text-muted-foreground sm:col-span-3">{MEMO_HELP}</span> : null}
                 </li>
               ))}
             </ul>
           </div>
           <p className="text-xs text-muted-foreground">Preview. The network decides when you send.</p>
+          {withoutMora ? (
+            <p className="border-l-2 border-waiting/60 pl-3 text-xs text-muted-foreground">
+              <span className="text-foreground">Without Mora:</span> a plain transfer to this list would fail. {withoutMora.waiting} of{" "}
+              {withoutMora.total} can&apos;t receive {asset?.code} yet, so none of the {withoutMora.total} would be paid. With Mora,{" "}
+              {withoutMora.total - withoutMora.waiting} {withoutMora.total - withoutMora.waiting === 1 ? "is" : "are"} delivered now and{" "}
+              {withoutMora.waiting} {withoutMora.waiting === 1 ? "waits" : "wait"}.
+            </p>
+          ) : null}
           {parsed.notices.map((n) => (
             <p key={n} className="text-xs text-muted-foreground">
               {n}
