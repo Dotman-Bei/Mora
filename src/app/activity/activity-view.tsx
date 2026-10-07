@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  buildDeliver,
   buildRefund,
   claimLink,
   formatAmount,
@@ -285,6 +286,37 @@ function ActivityRow({ r, probe, from, onChanged }: { r: Row; probe: NetworkProb
   const status: Status = r.status === "waiting" && returnable ? "ready-to-return" : r.status;
   const link = claimLink({ network: net.id, from, to: r.to, asset: r.token }, typeof window !== "undefined" ? window.location.origin : undefined);
 
+  /**
+   * Deliver now (PRD §6.5, P2): the sender pays the fee to push a waiting
+   * payment to a recipient who has since become ready. Simulated first; no
+   * signature unless it would actually move.
+   */
+  async function doDeliver() {
+    setBusy(true);
+    setErr(null);
+    try {
+      const caller = { publicKey: from, signTransaction: wallet.signTransaction };
+      let tx = await buildDeliver(net, caller, { from, to: r.to, token: r.token });
+      if (needsRestore(tx)) tx = await buildDeliver(net, caller, { from, to: r.to, token: r.token }, { restore: true });
+      const sim = parseDoorResult(tx.result);
+      if (sim.status === "still-blocked") {
+        setErr(`They still can't receive it: ${waitingReason(sim.code, r.asset.code)}. Share the link so they can claim.`);
+        return;
+      }
+      if (sim.status === "empty") {
+        setErr("Nothing is waiting any more.");
+        return;
+      }
+      const sent = await tx.signAndSend();
+      reportTx(net.id, sentHash(sent));
+      if (parseDoorResult(sent.result).status === "moved") onChanged();
+    } catch (e) {
+      setErr(walletErrorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function doReturn() {
     setBusy(true);
     setErr(null);
@@ -324,6 +356,9 @@ function ActivityRow({ r, probe, from, onChanged }: { r: Row; probe: NetworkProb
       {r.status === "waiting" ? (
         <div className="flex flex-wrap gap-2">
           <CopyButton text={link} />
+          <Button size="sm" variant="outline" onClick={() => void doDeliver()} disabled={busy}>
+            Deliver now
+          </Button>
           {returnable ? (
             <Button size="sm" onClick={() => void doReturn()} disabled={busy}>
               {busy ? "Signing…" : "Return"}
