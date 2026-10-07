@@ -2,15 +2,20 @@
 
 import { formatAmount, type NetworkProbe } from "mora-sdk";
 
-/** Tell the index about a transaction we just submitted (PRD §10.4 "after write"). Fire and forget. */
-export function reportTx(network: string, txHash: string | undefined) {
-  if (!txHash) return;
-  void fetch("/api/v1/ingest", {
+/**
+ * Tell the index about a transaction we just submitted (PRD §10.4 "after
+ * write"). Fire and forget, or await it when the next read depends on it.
+ */
+export function reportTx(network: string, txHash: string | undefined): Promise<void> {
+  if (!txHash) return Promise.resolve();
+  return fetch("/api/v1/ingest", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ network, txHash }),
     keepalive: true,
-  }).catch(() => {});
+  })
+    .then(() => undefined)
+    .catch(() => undefined);
 }
 
 /** A wallet error in plain words. Rejection always says nothing moved (PRD §6.2). */

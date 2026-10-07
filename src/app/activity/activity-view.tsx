@@ -183,7 +183,19 @@ export function ActivityView() {
     };
   }, [from, net, nonce]);
 
-  const visible = useMemo(() => (rows ?? []).filter((r) => filter === "all" || r.status === filter), [rows, filter]);
+  // Outcomes this page just confirmed on chain, keyed by recipient and token.
+  // They win over the index, which can lag a few seconds behind a return or
+  // delivery (it would otherwise read as UNKNOWN right after a success).
+  const [settled, setSettled] = useState(new Map<string, { status: Row["status"]; resolvedTx?: string }>());
+  const shown = useMemo(
+    () =>
+      (rows ?? []).map((r) => {
+        const s = settled.get(`${r.to}|${r.token}`);
+        return s && (r.status === "waiting" || r.status === "unknown") ? { ...r, status: s.status, resolvedTx: s.resolvedTx ?? r.resolvedTx } : r;
+      }),
+    [rows, settled],
+  );
+  const visible = useMemo(() => shown.filter((r) => filter === "all" || r.status === filter), [shown, filter]);
 
   function exportCsv() {
     const lines = [["recipient", "asset", "amount", "status", "reason", "return_ledger", "tx"].join(",")];
@@ -256,7 +268,16 @@ export function ActivityView() {
           ) : (
             <ul className="border border-border">
               {visible.slice(0, page * PAGE).map((r) => (
-                <ActivityRow key={r.key} r={r} probe={probe} from={from} onChanged={() => setNonce((n) => n + 1)} />
+                <ActivityRow
+                  key={r.key}
+                  r={r}
+                  probe={probe}
+                  from={from}
+                  onChanged={(status, resolvedTx) => {
+                    setSettled((m) => new Map(m).set(`${r.to}|${r.token}`, { status, resolvedTx }));
+                    setNonce((n) => n + 1);
+                  }}
+                />
               ))}
             </ul>
           )}
@@ -277,7 +298,17 @@ export function ActivityView() {
   );
 }
 
-function ActivityRow({ r, probe, from, onChanged }: { r: Row; probe: NetworkProbe; from: string; onChanged: () => void }) {
+function ActivityRow({
+  r,
+  probe,
+  from,
+  onChanged,
+}: {
+  r: Row;
+  probe: NetworkProbe;
+  from: string;
+  onChanged: (status: Row["status"], resolvedTx?: string) => void;
+}) {
   const { net } = useNetwork();
   const wallet = useWallet();
   const [busy, setBusy] = useState(false);
@@ -308,8 +339,9 @@ function ActivityRow({ r, probe, from, onChanged }: { r: Row; probe: NetworkProb
         return;
       }
       const sent = await tx.signAndSend();
-      reportTx(net.id, sentHash(sent));
-      if (parseDoorResult(sent.result).status === "moved") onChanged();
+      const hash = sentHash(sent);
+      await reportTx(net.id, hash);
+      if (parseDoorResult(sent.result).status === "moved") onChanged("delivered", hash);
     } catch (e) {
       setErr(walletErrorMessage(e));
     } finally {
@@ -325,9 +357,10 @@ function ActivityRow({ r, probe, from, onChanged }: { r: Row; probe: NetworkProb
       let tx = await buildRefund(net, caller, { from, to: r.to, token: r.token });
       if (needsRestore(tx)) tx = await buildRefund(net, caller, { from, to: r.to, token: r.token }, { restore: true });
       const sent = await tx.signAndSend();
-      reportTx(net.id, sentHash(sent));
+      const hash = sentHash(sent);
+      await reportTx(net.id, hash);
       const out = parseDoorResult(sent.result);
-      if (out.status === "moved") onChanged();
+      if (out.status === "moved") onChanged("returned", hash);
       else setErr(out.status === "still-blocked" ? `Couldn't return it yet (code ${out.code}).` : "Nothing is waiting any more.");
     } catch (e) {
       setErr(walletErrorMessage(e));
