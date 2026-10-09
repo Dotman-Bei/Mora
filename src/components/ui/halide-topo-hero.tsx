@@ -2,7 +2,7 @@
 
 import { Syncopate } from "next/font/google";
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { Fragment, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 
 // The Halide hero, used as Mora's landing hero as given (owner's choice; see
@@ -23,7 +23,8 @@ const syncopate = Syncopate({ weight: ["400", "700"], subsets: ["latin"], displa
 export interface HalideTopoHeroProps {
   brand: string;
   readouts: [string, string];
-  title: [string, string];
+  /** One entry per line on wide screens; phones let it flow. */
+  title: string[];
   footnote: [string, string];
   cta: { label: string; href: string };
   className?: string;
@@ -143,8 +144,8 @@ export function HalideTopoHero({ brand, readouts, title, footnote, cta, classNam
         .halide-body .hero-title {
           grid-column: 1 / -1;
           align-self: center;
-          font-size: clamp(2.25rem, 4.6vw, 5.5rem);
-          line-height: 1.15;
+          font-size: clamp(2.5rem, 6.6vw, 8rem);
+          line-height: 1.22;
           letter-spacing: 0.01em;
           word-spacing: 0.08em;
           /* Syncopate's lowercase is mixed small caps; set it in capitals. */
@@ -205,9 +206,17 @@ export function HalideTopoHero({ brand, readouts, title, footnote, cta, classNam
           </div>
 
           <h1 className="hero-title">
-            {title[0]}{" "}
-            <br />
-            {title[1]}
+            {title.map((line, i) => (
+              <Fragment key={line}>
+                {i > 0 ? (
+                  <>
+                    {" "}
+                    <br />
+                  </>
+                ) : null}
+                {line}
+              </Fragment>
+            ))}
           </h1>
 
           <div className="halide-bottom" style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
