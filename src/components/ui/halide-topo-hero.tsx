@@ -145,7 +145,7 @@ export function HalideTopoHero({ brand, readouts, title, footnote, cta, classNam
         .halide-body .hero-title {
           grid-column: 1 / -1;
           align-self: center;
-          font-size: clamp(2.5rem, 6.6vw, 8rem);
+          font-size: clamp(2.25rem, 5.8vw, 7rem);
           line-height: 1.22;
           letter-spacing: 0.01em;
           word-spacing: 0.08em;
