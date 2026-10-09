@@ -13,7 +13,7 @@ export const site = {
     brand: "PORTAJ",
     readouts: ["NETWORK: STELLAR TESTNET", "XLM HELD BY YOU: 0"] as [string, string],
     title: ["The exit route for", "Stellar smart wallets."],
-    footnote: ["[ PASSKEY · MEMO · NO XLM ]", "SEND USDC FROM YOUR PASSKEY WALLET TO ANY EXCHANGE. NO XLM. NO SEED PHRASE."] as [string, string],
+    footnote: ["[ PASSKEY · MEMO · NO XLM ]", "USDC FROM YOUR STELLAR SMART WALLET, DELIVERED TO ANY EXCHANGE WITH ITS MEMO."] as [string, string],
     cta: { label: "Carry to an exchange", href: "/app/carry" },
     secondary: { label: "Try it on testnet", href: "/app" },
     micro: ["One passkey prompt", "Memo included", "Fees paid by Portaj"],
