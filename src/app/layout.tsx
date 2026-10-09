@@ -44,7 +44,7 @@ const origins = [NETWORK.rpcUrl, NETWORK.horizonUrl].map((u) => new URL(u).origi
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${hedvigSans.variable} ${hedvigSerif.variable}`}>
+    <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth" className={`${hedvigSans.variable} ${hedvigSerif.variable}`}>
       <head>
         {origins.map((o) => (
           <link key={o} rel="preconnect" href={o} crossOrigin="anonymous" />
