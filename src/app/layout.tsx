@@ -3,6 +3,7 @@ import { Hedvig_Letters_Sans, Hedvig_Letters_Serif } from "next/font/google";
 import { Footer } from "@/components/footer";
 import { Chrome } from "@/components/header";
 import { Providers } from "@/components/providers";
+import { NETWORK } from "@/lib/config";
 import { site } from "@/lib/site.config";
 import "./globals.css";
 
@@ -25,7 +26,7 @@ const hedvigSerif = Hedvig_Letters_Serif({
 
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
-  title: { default: site.title, template: "%s | Mora" },
+  title: { default: site.title, template: "%s | Portaj" },
   description: site.description,
   openGraph: { title: site.title, description: site.description, siteName: site.name, type: "website" },
   twitter: { card: "summary_large_image", title: site.title, description: site.description },
@@ -38,37 +39,21 @@ export const viewport: Viewport = {
   ],
 };
 
-// Warm the connection to the RPC providers the browser will call first
-// (claim links read the contract on load).
-const rpcOrigins = [
-  ...new Set(
-    [process.env.NEXT_PUBLIC_TESTNET_RPC_URLS, process.env.NEXT_PUBLIC_MAINNET_RPC_URLS, "https://soroban-testnet.stellar.org"]
-      .flatMap((v) => (v ?? "").split(","))
-      .map((u) => u.trim())
-      .filter(Boolean)
-      .map((u) => {
-        try {
-          return new URL(u).origin;
-        } catch {
-          return null;
-        }
-      })
-      .filter((o): o is string => !!o),
-  ),
-];
+// Warm the connections the browser makes first: RPC and Horizon.
+const origins = [NETWORK.rpcUrl, NETWORK.horizonUrl].map((u) => new URL(u).origin);
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning className={`${hedvigSans.variable} ${hedvigSerif.variable}`}>
       <head>
-        {rpcOrigins.map((o) => (
+        {origins.map((o) => (
           <link key={o} rel="preconnect" href={o} crossOrigin="anonymous" />
         ))}
       </head>
       <body className="overflow-x-hidden bg-background font-sans text-foreground antialiased">
         <Providers>
           <Chrome />
-          <main className="mx-auto min-h-screen px-4 pt-[var(--banner-h,0px)] md:overflow-visible">{children}</main>
+          <main className="mx-auto min-h-screen px-4 md:overflow-visible">{children}</main>
           <Footer />
         </Providers>
       </body>

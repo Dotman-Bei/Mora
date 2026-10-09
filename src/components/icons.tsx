@@ -19,9 +19,9 @@ const s = (p: P) => ({
 
 export const Icons = {
   /**
-   * The Mora mark: the sender's rail, the payment held, the recipient's rail.
-   * Same geometry as public/brand/mora-mark.svg: a 14x12 grid, drawn at
-   * whole multiples (28x24 in the header) so every edge is a whole pixel.
+   * The Portaj mark: the water it leaves, the load carried overland, the water
+   * it reaches. A 14x12 grid, drawn at whole multiples (28x24 in the header)
+   * so every edge is a whole pixel.
    */
   Logo: (p: P) => (
     <svg width={28} height={24} viewBox="0 0 14 12" fill="currentColor" aria-hidden {...p}>
@@ -68,6 +68,16 @@ export const Icons = {
   api: (p: P) => (
     <svg {...s(p)}>
       <path d="M4 6h16v12H4zM8 10h3M8 14h8" />
+    </svg>
+  ),
+  key: (p: P) => (
+    <svg {...s(p)}>
+      <path d="M14.5 9.5a4 4 0 1 0-1.2 2.9L20 19.2M17 16.2l2-2M18.6 17.8l1.4-1.4" />
+    </svg>
+  ),
+  wallet: (p: P) => (
+    <svg {...s(p)}>
+      <path d="M4 7h16v12H4zM4 7l12-3v3M15 13h2" />
     </svg>
   ),
   check: (p: P) => (

@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
-import { NETWORK_LABEL } from "@/lib/networks";
+import { NETWORK } from "@/lib/config";
 import { site } from "@/lib/site.config";
-import { useNetwork } from "./providers";
 
 export function Footer() {
   return (
@@ -45,7 +44,7 @@ export function Footer() {
         <div className="mt-12 flex flex-col gap-3 border-t border-border pt-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <NetworkStatus />
           <p>
-            © {new Date().getFullYear()} {site.footer.copyright}. No trackers. Recipients never need an account.
+            © {new Date().getFullYear()} {site.footer.copyright}. {site.footer.note}
           </p>
         </div>
       </div>
@@ -80,22 +79,21 @@ function ThemeToggle() {
 
 /** Read live from the RPC, never hard-coded (frontend.md §9). */
 function NetworkStatus() {
-  const { net, id } = useNetwork();
   const [state, setState] = useState<"checking" | "healthy" | "unreachable">("checking");
   useEffect(() => {
     let alive = true;
     setState("checking");
-    rpcHealthy(net.rpcUrls).then((ok) => alive && setState(ok ? "healthy" : "unreachable"));
+    rpcHealthy([NETWORK.rpcUrl]).then((ok) => alive && setState(ok ? "healthy" : "unreachable"));
     return () => {
       alive = false;
     };
-  }, [net]);
+  }, []);
   const dot = state === "healthy" ? "bg-delivered animate-pulse-glow" : state === "unreachable" ? "bg-destructive" : "bg-muted-foreground";
   const label = state === "healthy" ? "RPC healthy" : state === "unreachable" ? "RPC unreachable" : "Checking RPC";
   return (
     <p className="flex items-center gap-2">
       <span className={`inline-block h-1.5 w-1.5 rounded-full ${dot}`} />
-      {NETWORK_LABEL[id]} · {label}
+      {NETWORK.label} · {label}
     </p>
   );
 }

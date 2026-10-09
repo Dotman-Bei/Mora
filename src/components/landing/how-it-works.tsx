@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { site } from "@/lib/site.config";
-import { Amount, StatusMark, type Status } from "../payment";
+import { Icons } from "../icons";
 
 // Three steps beside a canvas of scripted product animations. Each animation
 // calls onComplete, which advances to the next step, so the section cycles on
@@ -41,134 +41,100 @@ function useScript(frames: number, ms: number, reduced: boolean, onComplete?: ()
 
 type AnimProps = { reduced: boolean; onComplete?: () => void };
 
-const LIST = [
-  { addr: "GDQX…7KQM", chip: "Ready", status: "delivered" as Status },
-  { addr: "GBN4…2WPA", chip: "Will wait: no USDC trustline", status: "waiting" as Status },
-  { addr: "GCTR…H3LD", chip: "Ready", status: "delivered" as Status },
-  { addr: "CAZK…Q9RE", chip: "Ready", status: "delivered" as Status },
-  { addr: "GAQL…M8VB", chip: "Will wait: account not active", status: "waiting" as Status },
-];
+function Field({ label, value, shown }: { label: string; value: string; shown: boolean }) {
+  return (
+    <div className="space-y-1">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="h-9 truncate border border-border px-3 font-mono text-sm leading-9 text-foreground">{shown ? <span className="animate-fade-in-blur">{value}</span> : null}</p>
+    </div>
+  );
+}
 
-function SendAnimation({ reduced, onComplete }: AnimProps) {
-  const f = useScript(LIST.length + 3, 600, reduced, onComplete);
+function FormAnimation({ reduced, onComplete }: AnimProps) {
+  const f = useScript(6, 650, reduced, onComplete);
+  return (
+    <div className="w-full max-w-md space-y-4 border border-border bg-background p-4">
+      <Field label="Exchange deposit address" value="GCMG…AYE4" shown={f >= 1} />
+      {f >= 2 ? (
+        <p className="animate-fade-in-blur rounded-full border border-waiting/40 px-2.5 py-0.5 text-xs text-waiting w-fit">This exchange requires a memo</p>
+      ) : (
+        <p className="h-[22px]" />
+      )}
+      <Field label="Memo · ID" value="4417 2290" shown={f >= 3} />
+      <Field label="Amount" value="20.0000000 USDC" shown={f >= 4} />
+      <span className={`block h-10 text-center text-sm leading-10 transition-colors ${f >= 5 ? "bg-primary text-primary-foreground" : "border border-border text-muted-foreground"}`}>
+        Continue with passkey
+      </span>
+    </div>
+  );
+}
+
+function AccountAnimation({ reduced, onComplete }: AnimProps) {
+  const f = useScript(5, 700, reduced, onComplete);
+  const rows = [
+    ["XLM balance", "0"],
+    ["Base reserve", "Sponsored by Portaj"],
+    ["USDC trustline", "Sponsored by Portaj"],
+  ];
   return (
     <div className="w-full max-w-md border border-border bg-background">
-      <div className="border-b border-border px-4 py-3 text-xs text-muted-foreground">Recipients · 50 USDC each</div>
+      <div className="flex items-center gap-3 border-b border-border px-4 py-3">
+        <span className={`flex h-8 w-8 items-center justify-center border ${f >= 1 ? "border-foreground text-foreground" : "border-border text-muted-foreground"}`}>
+          <Icons.key className="h-4 w-4" />
+        </span>
+        <span className="text-sm text-foreground">{f >= 1 ? "Passkey confirmed" : "Waiting for your passkey…"}</span>
+      </div>
+      <div className="space-y-1 border-b border-border px-4 py-3">
+        <p className="text-xs text-muted-foreground">Your exit account</p>
+        <p className="font-mono text-sm text-foreground">{f >= 2 ? <span className="animate-fade-in-blur">GBX4…P2QD</span> : "—"}</p>
+      </div>
       <ul>
-        {LIST.map((r, i) => (
-          <li key={r.addr} className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5 text-sm">
-            <span className="shrink-0 whitespace-nowrap font-mono tabular text-foreground">{r.addr}</span>
-            {f > i ? (
-              <span className={`animate-fade-in-blur rounded-full border px-2 py-0.5 text-xs ${r.status === "delivered" ? "border-delivered/40 text-delivered" : "border-waiting/40 text-waiting"}`}>
-                {r.chip}
-              </span>
-            ) : (
-              <span className="text-xs text-muted-foreground">Checking…</span>
-            )}
+        {rows.map(([k, v], i) => (
+          <li key={k} className="flex items-center justify-between border-b border-border px-4 py-2.5 text-sm last:border-b-0">
+            <span className="text-muted-foreground">{k}</span>
+            {f >= 3 + (i > 0 ? 1 : 0) ? <span className="animate-fade-in-blur text-foreground">{v}</span> : <span className="text-xs text-muted-foreground">…</span>}
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+function SendAnimation({ reduced, onComplete }: AnimProps) {
+  const f = useScript(6, 700, reduced, onComplete);
+  const steps = ["Set up exit account", "Wallet → exit account", "Exit account → exchange, memo 4417 2290"];
+  return (
+    <div className="w-full max-w-md border border-border bg-background">
+      <ul>
+        {steps.map((s, i) => {
+          const done = f > i + 1;
+          const now = f === i + 1;
+          return (
+            <li key={s} className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5 text-sm">
+              <span className="flex items-center gap-2 text-foreground">
+                <span className={`inline-block h-2 w-2 rounded-full ${done ? "bg-delivered" : now ? "animate-pulse bg-waiting" : "bg-muted-foreground/40"}`} aria-hidden />
+                {s}
+              </span>
+              <span className="shrink-0 text-xs text-muted-foreground">{done ? "Confirmed" : now ? "Sending…" : ""}</span>
+            </li>
+          );
+        })}
+      </ul>
       <div className="flex items-center justify-between gap-3 p-4">
-        <span className="text-xs text-muted-foreground">Preview. The network decides when you send.</span>
-        <span className={`h-9 shrink-0 px-4 text-sm leading-9 transition-colors ${f >= LIST.length + 1 ? "bg-primary text-primary-foreground" : "border border-border text-muted-foreground"}`}>
-          {f >= LIST.length + 2 ? "Signed" : "Sign once"}
-        </span>
+        <span className="text-xs text-muted-foreground">Exchange simulator</span>
+        {f >= 5 ? <span className="animate-fade-in-blur text-sm text-delivered">+20.0000000 USDC credited</span> : <span className="text-sm text-muted-foreground">0 credited</span>}
       </div>
     </div>
   );
 }
 
-function WaitAnimation({ reduced, onComplete }: AnimProps) {
-  const f = useScript(5, 800, reduced, onComplete);
-  return (
-    <div className="w-full max-w-md space-y-4">
-      <div className="border border-border bg-background">
-        <div className="grid grid-cols-3 border-b border-border text-xs text-muted-foreground">
-          {[
-            ["Delivered", "3"],
-            ["Waiting", "2"],
-            ["Failed", "0"],
-          ].map(([l, v]) => (
-            <div key={l} className="border-r border-border px-4 py-3 last:border-r-0">
-              <p>{l}</p>
-              <p className="font-mono tabular text-xl text-foreground">{v}</p>
-            </div>
-          ))}
-        </div>
-        <div className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
-          <span className="font-mono tabular">GBN4…2WPA</span>
-          <StatusMark status="waiting" reason="no USDC trustline" className="text-xs" />
-        </div>
-        <div className="flex gap-2 border-t border-border px-4 py-3">
-          <span className={`h-8 px-3 text-xs leading-8 transition-colors ${f >= 1 ? "bg-primary text-primary-foreground" : "border border-border text-muted-foreground"}`}>
-            {f >= 2 ? "Link copied" : "Copy link"}
-          </span>
-          <span className="h-8 border border-border px-3 text-xs leading-8 text-muted-foreground">Share</span>
-        </div>
-      </div>
-      {f >= 3 ? (
-        <div className="ml-auto max-w-[17rem] animate-fade-in-scale rounded-2xl border border-border bg-card p-3 text-sm">
-          <p className="text-foreground">Your October payout is waiting 👇</p>
-          <p className="mt-1 break-all font-mono text-xs text-muted-foreground">mora-chi.vercel.app/claim?network=testnet&from=GDQX…&to=GBN4…</p>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function ClaimAnimation({ reduced, onComplete }: AnimProps) {
-  const f = useScript(5, 900, reduced, onComplete);
-  const claimed = f >= 2;
-  const returned = f >= 4;
-  return (
-    <div className="grid w-full max-w-lg gap-4 sm:grid-cols-2">
-      <div className="border border-border bg-background">
-        <div className="space-y-3 p-4">
-          <StatusMark status={claimed ? "claimed" : "waiting"} reason={claimed ? undefined : "no USDC trustline"} className="text-xs" />
-          <p className="text-3xl">
-            <Amount value={500_000_000n} />
-          </p>
-          <p className="text-xs text-muted-foreground">USDC · centre.io</p>
-        </div>
-        <div className="border-t border-border p-4">
-          {claimed ? (
-            <p className="animate-fade-in-blur text-xs text-muted-foreground">USDC was added to your wallet.</p>
-          ) : (
-            <span className={`block h-9 text-center text-sm leading-9 ${f >= 1 ? "bg-primary text-primary-foreground" : "border border-border"}`}>
-              {f >= 1 ? "Signing…" : "Claim"}
-            </span>
-          )}
-        </div>
-      </div>
-      <div className="border border-border bg-background">
-        <div className="space-y-3 p-4">
-          <StatusMark status={returned ? "returned" : f >= 3 ? "ready-to-return" : "waiting"} reason={f < 3 ? "account not active" : undefined} className="text-xs" />
-          <p className="text-3xl">
-            <Amount value={500_000_000n} />
-          </p>
-          <p className="text-xs text-muted-foreground">USDC · centre.io</p>
-        </div>
-        <div className="border-t border-border p-4">
-          {returned ? (
-            <p className="animate-fade-in-blur text-xs text-muted-foreground">Returned to the sender.</p>
-          ) : (
-            <span className={`block h-9 text-center text-sm leading-9 ${f >= 3 ? "bg-primary text-primary-foreground" : "border border-border text-muted-foreground"}`}>
-              {f >= 3 ? "Return to sender" : "Returns after Oct 17"}
-            </span>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const ANIMS = [SendAnimation, WaitAnimation, ClaimAnimation];
+const ANIMS = [FormAnimation, AccountAnimation, SendAnimation];
 
 export function HowItWorks() {
   const reduced = useReducedMotion();
   const [active, setActive] = useState(0);
   const next = () => setActive((a) => (a + 1) % ANIMS.length);
-  const Anim = ANIMS[active] ?? SendAnimation;
+  const Anim = ANIMS[active] ?? FormAnimation;
 
   return (
     <section className="mx-auto max-w-[1400px] py-12 sm:py-16 lg:py-24">
@@ -206,7 +172,7 @@ export function HowItWorks() {
       <div className="space-y-12 lg:hidden">
         <h2 className="text-center font-serif text-2xl">How it works</h2>
         {site.steps.map((s, i) => {
-          const A = ANIMS[i] ?? SendAnimation;
+          const A = ANIMS[i] ?? FormAnimation;
           return (
             <div key={s.title} className="space-y-4">
               <div>

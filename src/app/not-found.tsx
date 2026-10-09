@@ -7,11 +7,11 @@ export default function NotFound() {
       <h1 className="font-serif text-4xl">
         Nothing <em className="not-italic text-muted-foreground">here</em>.
       </h1>
-      <p className="text-sm text-muted-foreground">If someone sent you a payment link, check it was copied in full.</p>
+      <p className="text-sm text-muted-foreground">If you followed a receipt link, check it was copied in full.</p>
       <div className="flex gap-3">
         <ButtonLink href="/">Home</ButtonLink>
-        <ButtonLink href="/inbox" variant="outline">
-          Check for payments
+        <ButtonLink href="/exit" variant="outline">
+          Exit to an exchange
         </ButtonLink>
       </div>
     </div>

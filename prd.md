@@ -1,748 +1,766 @@
-# Mora
+# Portaj · Product Requirements Document
 
-**Payments that wait.** Send money to anyone on Stellar. If they can't receive it yet, it waits for them, and it comes back to you if they never take it.
+Mechanism: **Transit**
 
-*Mora* is Latin for "delay." Roman law used *mora creditoris* for the delay that happens when the person being paid isn't ready to take the money. Mora is the product for that moment.
+Name: **Portaj**, compressed from *portage*, the practice of carrying a boat overland between two waters it cannot sail between. USDC cannot move straight from a smart wallet to an exchange, so Portaj carries it across a short stretch (the user's own transit account) and puts it back in the water. Working title during research: Exit Lane.
 
-| | |
+Portaj lets a passkey smart-wallet user send USDC to any exchange deposit address with its memo, through their own passkey-derived Stellar account that is created with sponsored reserves, so they need no XLM and no seed phrase.
+
+| Field | Value |
 |---|---|
-| What it is | A payouts product for anyone who pays people on Stellar: a live web app, with one shared Soroban contract underneath that other wallets and payout apps can send through too |
-| Who uses it | People and teams who pay others (payroll, contributors, grants, prizes, friends), and the people they pay |
-| Networks | Stellar Mainnet (beta, capped) and Testnet |
-| Live URL | `OWNER DECISION` (§21) |
-| Event | Find Your Way: Hackathon, General Track. Submission closes October 5, 2026, 4:00 p.m., timezone unconfirmed (§18.1) |
-| Doc | v0.3, October 3, 2026. Renamed from Duro. |
+| Builder | Heisbei (Bamigboye Emmanuel Inioluwa), solo |
+| Event | Find Your Way: Hackathon (Stellar Passport, "chapter" hackathon on the road to HackMeridian) |
+| Track | General Track |
+| Submission deadline | 2026-10-12 23:59 UTC = 2026-10-13 00:59 WAT (Africa/Lagos) |
+| Demo network | **Stellar testnet** (confirmed acceptable by the builder) |
+| Status | Idea selected through the ideaskill pipeline; this PRD is the build spec |
+| Research trail | `00-constraints.md` to `07-final-checks.md`, `FINAL_IDEA.md` in this folder |
 
 ---
 
-## 1. What Mora is
+## Table of contents
+1. Event context
+2. Builder constraints
+3. Problem
+4. Why the obvious fixes fail
+5. Solution and mechanism
+6. Why this needs Stellar
+7. Users and use cases
+8. Functional requirements
+9. Transaction specifications
+10. Key derivation specification
+11. Failure handling and recovery
+12. Testnet exchange simulator
+13. Non-functional requirements
+14. Architecture and stack
+15. Screens and copy
+16. Demo moment, claim and judge verification
+17. Scope
+18. Judging criteria mapping
+19. Submission requirements and README
+20. Risks, kill criteria and open questions
+21. Validation message
+22. Success measures
+23. Appendix A · Event intel in full
+24. Appendix B · Stellar primitives and overlap zones
+25. Appendix C · Pain bank (all 29 kept, 7 dropped)
+26. Appendix D · All 14 candidates and why each lived or died
+27. Appendix E · Prior art
+28. Appendix F · Scorecard and source verification
+29. Appendix G · Runner-up and third place in full
+30. Sources
 
-On Stellar, an account has to opt in to an asset (a trustline) before it can hold it. When a payroll tool or a smart wallet sends USDC to someone who hasn't opted in, the payment fails. If that payment was one line of a payout run, the whole run fails with it, and nobody gets paid.
+---
 
-Mora fixes this at the moment of payment. Every payment sent through Mora ends in exactly one of three places:
+## 1. Event context
 
-| Outcome | When | What the recipient does |
+- **Name:** Find Your Way: Hackathon. Slug `find-your-way-meridian-hackathon`. Type `chapter`. Organizer: Stellar Passport. Status at research time: `submissions_open`, 268 registered participants.
+- **Stated goal:** "Find Your Way is a hackathon designed to help builders gain hands-on experience with Stellar and prepare for HackMeridian in Lisbon. Participants will turn ideas into working projects, strengthen their technical and pitching skills, and compete for prizes while building their Stellar Passport."
+- **Dates:** start 2026-09-01; submissions open 2026-09-21; deadline 2026-10-12 23:59 UTC; judging 2026-10-12 23:59 UTC to 2026-10-16 22:01 UTC.
+- **Prize pool:** 5,000 USDC.
+  - General Track: 1st 2,000 · 2nd 1,000 · 3rd 500 · Honorable mention #1 250 · Honorable mention #2 250 (total $4,000).
+  - University Track: Best University Project #1 500 · #2 500 (total $1,000). Chile-enrolled students only. **Not eligible.**
+- **Judging criteria (General Track, unweighted):** technical execution, meaningful use of Stellar, originality, potential impact, user experience, presentation quality.
+- **Judges:** none named anywhere (confirmed by the builder: no judges list on the page). `INFERRED`: Stellar Chile ambassadors and SDF devrel; the organizer's founder is President of the Stellar Ambassador Program in Chile.
+- **Sponsors:** none. No sponsor bounties. The only resource linked is https://docs.stellar.org.
+- **Feeds into:** HackMeridian, Lisbon, 25 to 26 Oct 2026, up to $30,000 in XLM, Genesis (Idea → MVP) and Scale (Prototype → Product) tracks. HackMeridian FAQ: "Smart contracts, smart accounts, and cross-chain transfers are the top priorities this year." and on docs: "A clear README that shows how your project works, including its specs. That does most of the work for judges."
+- **Event type:** `mixed` (SDF summit winners reward novel mechanisms; regional winners reward a named real-world user with a working payment flow; this event's criteria mix both).
+
+Full detail in Appendix A.
+
+## 2. Builder constraints
+
+From `00-constraints.md`, plus answers given after the research:
+
+- **Solo.**
+- **Comfortable stack:** Rust / Soroban contracts, TypeScript / Next.js frontend, Stellar SDK (classic operations, Horizon, RPC), passkeys / smart wallets.
+- **Rules the builder set for this event:**
+  - Minimal.
+  - Immediately consumable in real life.
+  - Not a "soundbox" (not a showpiece with no real use).
+  - Plug-and-play, not siloed.
+  - Scoped to win, not to impress.
+  - Shipped as a live product with a working frontend reachable from a URL, not a repo that only runs when cloned.
+  - A product that scales, not a developer's tool.
+  - Mora (the earlier pick) is excluded. Fresh start.
+- **Network:** testnet demo is acceptable (confirmed by the builder). Mainnet is optional, never required.
+- **Track:** General Track only.
+- **Submission:** open-source repo, video pitch 3 minutes max, project description, email, track selection, other links optional, accept Stellar Passport terms. Registration needs a GitHub profile. Live deployment not required by the event, but required by the builder's own rule.
+- **No build schedule, task breakdown or day-by-day plan appears in this document**, by the builder's standing preference and the ideaskill rule.
+
+## 3. Problem
+
+### The person
+A Stellar user whose wallet is a passkey smart account (a C-address). passkey-kit's smart wallet v0.17.0 was uploaded to Stellar testnet (ledger 4454440) and mainnet (ledger 64229392) on 2026-09-01, so these wallets exist on both networks today. The user holds USDC, for example a bounty or a prize paid into that wallet, and wants naira. In Nigeria the usual route from USDC to naira runs through an exchange's P2P desk, so the user opens their exchange, which shows a Stellar deposit address and a memo.
+
+### The moment
+They press send in their smart wallet.
+
+1. A transfer out of a smart wallet is a contract call (`InvokeHostFunction`). The network rejects any memo on it. stellar-core `TransactionFrame::validateSorobanMemo()` returns false when a single `INVOKE_HOST_FUNCTION` transaction carries a memo or a muxed source, with the diagnostic "Soroban transactions are not allowed to use memo or muxed source account", enforced from `ProtocolVersion::V_25`.
+2. Without the memo, SDF's own docs say "transfers from contracts are not supported by exchanges today."
+3. Switching to a classic wallet hits the reserve wall: a new account needs XLM for its base reserve plus the USDC trustline before it can hold USDC (stellar-protocol discussion #1956: "Withdrawal flows stall, and support burden rises"; Freighter issue #3002: "Activate and transact in Freighter without first holding XLM").
+
+### The loss
+Access to their own money. If they send anyway without a memo, the exchange cannot credit it and must handle it by hand; SDF says a missing memo "causes anxiety for the user when they think their funds have been lost."
+
+### Pains this addresses (from the pain bank)
+- **P-13** A passkey smart-wallet user cannot withdraw to a centralized exchange, because "transfers from contracts are not supported by exchanges today." High, every smart-wallet user who wants to exit to an exchange.
+- **P-14** A smart-wallet user cannot attach the exchange or ramp memo, because "Memos are disallowed when the transaction invokes a contract." High, same moment.
+- **P-15** A new Freighter user cannot transact at all until they first acquire XLM. High, every new user.
+- **P-09** A first-time recipient of a classic Stellar asset stalls mid-withdrawal when the wallet asks for a trustline and they hold no XLM for the reserve. High, every first-time recipient.
+
+## 4. Why the obvious fixes fail
+
+**Obvious fix A: "Send it to a classic wallet like LOBSTR first, then to the exchange."**
+1. A new classic account cannot hold USDC until it has XLM for its reserve and the USDC trustline. Withdrawals stall at exactly that prompt (#1956), and payout programs require the wallet to "hold a small XLM balance" (Drips Wave). The only place to buy XLM is the exchange the user cannot reach.
+2. It hands a passkey user a seed phrase for a one-time exit, which is what smart wallets exist to avoid.
+
+**Obvious fix B: "Send to a muxed M-address (CAP-67) instead of using a memo."**
+1. The transfer is still a contract call, and exchanges do not credit contract transfers (SDF smart-wallet docs).
+2. Muxed IDs are 64-bit numbers, so exchanges that issue text memos cannot be reached at all (rhino.fi docs: muxed addresses and `MEMO_ID` are capped at 64 bits).
+
+**Obvious fix C: "Wait for the protocol to add muxed C-addresses."**
+Discussion #1950 is a proposal, not shipped, contested in the thread, and even if shipped, exchanges would still need to start indexing contract transfers.
+
+## 5. Solution and mechanism
+
+### One flow
+```
+1. User pastes exchange address + memo, signs in with a passkey on Portaj
+2. WebAuthn PRF ──► 32 bytes ──► ed25519 key ──► the user's own G address (same passkey, same G every time)
+3. Sponsor tx: BeginSponsoring ─► CreateAccount(G, 0 XLM) ─► ChangeTrust(USDC) ─► EndSponsoring
+4. Smart wallet (C) ──SEP-41 transfer(C ─► G, amount)──► USDC lands in G
+5. G ──classic Payment(USDC) + memo──► exchange deposit address; sponsor fee-bumps the tx
+6. Receipt page: three explorer links; G native balance 0; reserves show the sponsor
+```
+
+- First exit for a passkey: three transactions (setup, transfer in, payment out).
+- Every later exit: two transactions (transfer in, payment out). The G account and trustline already exist.
+- G is a **transit** account: USDC sits in it for one ledger between steps 4 and 5. Portaj never holds user keys or user funds.
+
+### Two modes (plug-and-play, not siloed)
+- **Mode A · In-app smart wallet.** The user's smart wallet is a passkey-kit wallet created on Portaj. Portaj signs the C → G transfer directly. Target: one passkey prompt per exit (see §10, single-ceremony design). Used for the demo and for judges.
+- **Mode B · Bring your own smart wallet.** Passkeys are bound to the domain that created them, so Portaj cannot sign for a wallet that lives on another site. Portaj shows the user's own G address and the exact amount; the user sends USDC from their own wallet app to that G; Portaj detects arrival and asks for one passkey prompt to sign the memo payment out. Works with any C-address wallet without integration.
+
+## 6. Why this needs Stellar
+
+### Differentiator sentence (from 02)
+"Stellar can deliver a regulated dollar to a person who has never used the network, convert currencies inside the same transaction, and hand that dollar to a licensed cash-out point, which is impractical elsewhere because trustlines with issuer authorization and clawback, claimable balances, sponsored reserves, path payments over a built-in order book, and the SEP anchor interfaces are protocol-level or standard-level features on Stellar, while on other chains each is a separate app contract or a private integration."
+
+### Port test: PASS
+The pain only exists on Stellar: the C/G address split, the memo ban on contract invocations, and reserve-gated trustlines. No other chain needs this product.
+
+### Delete-primitive test: PASS
+Without sponsored reserves the user must first buy XLM, which needs an exchange, which is the thing they cannot reach.
+
+### Primitives used
+- **Host primitive:** Stellar classic accounts with sponsored reserves (CAP-33) and fee bumps (CAP-15). Without them the user must hold XLM before the G account can exist or hold USDC.
+- **Sponsor slot:** the event has no sponsors. The second deep primitive is the smart account (passkey-kit, SEP-41 `transfer` from a C-address). Without it there is no stranded user to serve; with it, the transfer into the user's own G is the only Soroban step.
+- Stellar Passport is not integrated (its stamp data could not be read publicly; see Appendix D, C-05).
+
+## 7. Users and use cases
+
+| User | Situation | What Portaj does |
 |---|---|---|
-| **Delivered** | The recipient could receive it | Nothing. It's in their wallet. |
-| **Waiting** | They couldn't receive it yet | Opens the link, signs once. Mora adds the asset to their wallet and hands over the money in the same transaction. |
-| **Returned** | Nobody claimed it before the return date | Nothing. It goes back to the sender. |
+| Passkey smart-wallet holder (primary) | Holds USDC in a C-address, wants it on an exchange to sell for naira or other fiat | Moves it with the memo, no XLM, no seed phrase |
+| Bounty or prize winner paid into a smart wallet | Same as above, first time touching Stellar | Same, first-run setup is sponsored |
+| Hackathon judge | Wants to verify the claim | Creates a testnet passkey wallet in-app, gets test USDC, runs an exit to the testnet exchange simulator, checks three explorer links |
 
-**Mora is a product, not a developer tool.** The people it serves are the ones who pay and the ones who get paid. They use the app and never touch the contract. The shared contract is how Mora grows beyond its own app: any wallet or payout app can send through it, and their recipients claim in the same Mora inbox.
+Open question (unresolved by the builder): whether Stellar Passport's embedded wallets are C-addresses. If they are, Passport users are the most direct named population for this product. The Passport architecture page describes "Embedded Stellar wallets created per user and managed server-side (following Stellar's smart-wallet demo model)", which does not settle it.
 
----
+## 8. Functional requirements
 
-## 2. The problem
+### FR-1 Exit form
+- FR-1.1 Inputs: destination address (G or M), memo (type ID or TEXT), amount in USDC.
+- FR-1.2 Validate destination with StrKey. Reject C-addresses as destinations (classic payments cannot target contracts).
+- FR-1.3 If the destination is an M-address, decode it and treat the muxed ID as the memo for display; send the classic payment to the M-address.
+- FR-1.4 Read the destination's account data. If `config.memo_required = 1` (SEP-29) is set and no memo is given, block with a clear message.
+- FR-1.5 Amount precision: Stellar USDC has 7 decimals. Validate and display with 7; never assume 6.
+- FR-1.6 Asset: Circle USDC only. Testnet issuer `GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5`. Mainnet issuer configured separately. Never accept a look-alike issuer.
 
-Ada pays five contributors 50 USDC each from her team's payout tool. Kunle's wallet never added USDC. The transfer to Kunle fails, the whole payout rolls back, and all five go unpaid. Ada can drop Kunle and pay him later by hand, ask him to add USDC and retry, or change tools.
+### FR-2 Passkey sign-in and G derivation
+- FR-2.1 WebAuthn create or get on Portaj's own domain with the PRF extension (`prf.eval.first` = fixed salt, see §10).
+- FR-2.2 Derive the ed25519 key in the browser. The seed never leaves the browser and is never stored.
+- FR-2.3 Show the derived G address as "Your exit account".
+- FR-2.4 If PRF is not available (`prf.enabled` false, or no `prf.results` on get), switch to the same-session fallback (§10.4) and say so plainly.
 
-### 2.1 Why existing fixes don't cover it
+### FR-3 Sponsored setup
+- FR-3.1 If the G account does not exist, request setup from the sponsor service.
+- FR-3.2 Sponsor service builds tx1 (§9.1), signs as sponsor, returns XDR; the browser adds the G signature; sponsor service submits.
+- FR-3.3 If the account exists but has no USDC trustline, build tx1 without `CreateAccount`.
+- FR-3.4 Rate limit: one sponsored setup per passkey credential ID and per IP window. Refuse when the sponsor balance is below a floor.
 
-- **Claimable balances** solved this for classic Stellar in 2020, but they are a classic operation. Contracts and smart wallets (C-addresses) can't create them.
-- **The SAC `trust` function** (Protocol 26, CAP-73) lets a contract create a trustline, but the account holder still has to authorize it. A payer can't sign for the payee.
-- **There is no "does this trustline exist" check** in CAP-73's final design (stellar-protocol PR #1860). A contract finds out by making a call fail, and an off-chain check can go stale before the payment lands.
-- **Every team writes its own fallback.** Three public Soroban projects opened issues about this within about three weeks, each with a different workaround (Appendix A).
+### FR-4 Transfer in (C → G)
+- FR-4.1 Mode A: build SEP-41 `transfer(C, G, amount)` with passkey-kit `buildTokenTransferHostFunction`, sign with the user's passkey, submit through the relayer path.
+- FR-4.2 Mode B: show G and the exact amount; poll RPC/Horizon for the incoming USDC; continue when the G balance reaches the amount.
 
-### 2.2 Evidence
+### FR-5 Payment out (G → exchange)
+- FR-5.1 Build tx3 (§9.3): source G, `Payment(USDC, amount)` to destination, memo attached.
+- FR-5.2 Sign the inner transaction with the derived G key; wrap in a fee bump paid by the sponsor.
+- FR-5.3 Submit; on success G's USDC balance returns to 0.
 
-| ID | Evidence | Status |
-|---|---|---|
-| E1 to E3 | Lokt-In #43, SorobanKit #12, Surge #1: payouts abort or strand on a payee without a trustline | VERIFIED, observed Oct 3, 2026. Some may be bounty-program repos: a recurrence signal, not a usage number. |
-| E4 | SDF's wallet-backend notes the SAC `trust` call emits no event, so its indexer misses SAC-created trustlines | VERIFIED |
-| E5 | Share of active mainnet accounts with no Circle USDC trustline | To measure (Appendix B). Publish numerator and denominator. |
-| E6 | Mora's own mainnet pilot: real people paid through the live app (§16) | Created during the build |
+### FR-6 Receipt
+- FR-6.1 Show three explorer links (stellar.expert): setup (first run only), transfer in, payment out.
+- FR-6.2 Show G's native balance (0) and that its reserves are sponsored.
+- FR-6.3 Show the memo exactly as sent.
 
----
+### FR-7 The "before" panel
+- FR-7.1 A button that tries the naive path: the smart wallet sends USDC to the exchange address with the memo attached.
+- FR-7.2 Display the network's rejection verbatim: "Soroban transactions are not allowed to use memo or muxed source account".
+- FR-7.3 Optional second attempt without memo: the contract transfer lands on-chain, and the testnet exchange simulator does not credit it (it only credits classic payments with a memo, mirroring real exchanges per SDF docs).
 
-## 3. Who it's for
+### FR-8 Recovery
+- FR-8.1 "Return to my wallet": if USDC is sitting in G, send it back to the user's C-address with a SEP-41 transfer signed by G, fee-bumped by the sponsor.
+- FR-8.2 "Resume exit": re-derive G with the same passkey and retry tx3.
 
-| User | Role | What they do in Mora | What they get |
+### FR-9 Judge onboarding (testnet only)
+- FR-9.1 "Create a test smart wallet" with passkey-kit on testnet.
+- FR-9.2 "Get test USDC": send a small amount from a sponsor-held testnet USDC stash (funded from https://faucet.circle.com) to the new wallet. Hidden on mainnet.
+
+### FR-10 Testnet exchange simulator (§12)
+
+## 9. Transaction specifications
+
+Libraries: `@stellar/stellar-sdk` 17.2.1 (current, modified 2026-10-01) with `@stellar/stellar-base` 15.0.0; passkey-kit at commit `74210a4` (v0.17.0 smart wallet).
+
+### 9.1 tx1 · Sponsored setup (first run only)
+| # | Operation | Source | Notes |
 |---|---|---|---|
-| Payout operator (team, DAO, hackathon, freelancer platform, payroll) | Primary customer | Pastes a list, signs once | No failed runs, and one place to see who has been paid and who hasn't |
-| Sender | Primary customer | Pays a friend or freelancer from Freighter, LOBSTR, xBull, or another Stellar wallet | A payment that can't fail because the other side wasn't ready |
-| Recipient | Primary user | Opens a link on their phone, signs once | The money and the asset in their own wallet, in one step |
-| Partner app (wallet, payroll tool, payout contract) | Distribution channel | Sends through the Mora contract instead of a plain transfer | Mora's guarantee for their users, plus a claim page and inbox they don't have to build |
+| 1 | `beginSponsoringFutureReserves({ sponsoredId: G })` | Sponsor | |
+| 2 | `createAccount({ destination: G, startingBalance: "0" })` | Sponsor | Zero allowed: stellar-base `create_account.js` uses `isValidAmount(..., true)`; core `CreateAccountOpFrame.cpp` uses `createEntryWithPossibleSponsorship` |
+| 3 | `changeTrust({ asset: USDC })` | G | Trustline reserve sponsored |
+| 4 | `endSponsoringFutureReserves()` | G | Must be in the same tx |
+Transaction source and fee: Sponsor. Signatures: Sponsor + G.
+Result: G exists with 0 XLM, USDC trustline, all reserves sponsored.
 
-Partners are a channel, not the customer. Mora succeeds when people pay people with it.
+### 9.2 tx2 · Transfer in (Mode A)
+- Single `InvokeHostFunction`: USDC SAC `transfer(from = C, to = G, amount)`.
+- Built with passkey-kit `buildTokenTransferHostFunction(tokenContract, from, to, amountInStroops)`.
+- Auth: the user's passkey signs the auth entry for C. No memo (the network forbids it).
+- Fee: relayer / sponsor.
 
----
+### 9.3 tx3 · Payment out
+- Inner tx: source G, one `payment({ destination, asset: USDC, amount })`, memo = exchange memo (ID or TEXT), signed by the derived G key.
+- Outer: `TransactionBuilder.buildFeeBumpTransaction(sponsor, baseFee, innerTx, networkPassphrase)`, signed by sponsor.
+- Result: exchange receives a classic payment with its memo. G's native balance stays 0.
 
-## 4. Product principles
+### 9.4 tx4 · Return to wallet (recovery)
+- Inner tx: source G, `InvokeHostFunction` SAC `transfer(from = G, to = C, amount)`, signed by G (source account auth).
+- Fee bump by sponsor.
 
-1. A payment never fails because the recipient wasn't ready.
-2. Recipients use the wallet they already have. No Mora account, no sign-up, no email.
-3. The chain is the source of truth. The app's index tells it where to look; every amount on screen is read from the contract before it's shown.
-4. Mora's operators can never move anyone's money. Servers hold no mainnet key, and the contract has no admin and no upgrade path.
-5. No noise. No notifications, no feed, no token. The only message Mora sends is a link, and the sender chooses to share it.
-6. Built to scale from the first commit. Every v1 choice has to survive far more users without a rewrite (§10.3).
+### 9.5 Not used
+No claimable balances, no custom contract of Portaj's own, no anchors.
 
----
+## 10. Key derivation specification
 
-## 5. How Mora grows
+### 10.1 PRF ceremony
+- Relying party: Portaj's domain.
+- `extensions.prf.eval.first = SHA-256("portaj:stellar:g-account:v1")`. Fixed per network family; never per transaction.
+- On create: check `prf.enabled`; if PRF output is not returned at creation, evaluate it in an immediate `get()` (MDN notes fewer authenticators return PRF on create).
 
-- **Every waiting payment is an invitation.** A recipient who wasn't ready arrives through a link, claims with one signature, and leaves knowing a product they can use to pay their own people. The problem Mora solves is also how it finds new users.
-- **One inbox across apps.** Every app that pays through the shared contract adds to the same inbox. The more apps send through Mora, the more the inbox is worth to recipients, and the more reason the next app has to integrate.
-- **Revenue comes later, and never from the contract.** The contract stays fee-free and immutable. If Mora charges, it charges payout operators for app features (saved recipient lists, scheduled payouts, approvals, exports), never a cut of anyone's payment. Not in v1.
+### 10.2 Seed to G
+- `seed = HKDF-SHA256(ikm = prf.results.first, salt = "portaj", info = "stellar-ed25519-seed:" + networkPassphraseHash, length = 32)`.
+- `Keypair.fromRawEd25519Seed(seed)` (present in stellar-base `lib/keypair.js`).
+- Testnet and mainnet derive different G addresses because the info string includes the network.
 
----
+### 10.3 Single-ceremony design (Mode A, target)
+One `navigator.credentials.get` call with `challenge` = the Soroban auth payload hash for tx2 and `extensions.prf.eval` set. The assertion signs tx2; the PRF output derives G, which signs tx3. If the smart-wallet signer and the PRF credential differ, fall back to two prompts.
 
-## 6. Product surfaces
+### 10.4 Fallback when PRF is unavailable
+Generate a one-time key with `Keypair.random()` held in memory. Complete tx1 to tx3 in one session. If the session breaks between tx2 and tx3, the funds are in an account whose key is gone, so in fallback mode the UI requires the user to keep the page open and shows a downloadable one-time recovery file containing the secret before tx2 is sent. State this risk plainly on screen.
+
+### 10.5 Supported authenticators (from mera's live tests)
+- Works: iCloud Keychain (Safari 18 / iOS 18+, macOS 15+; Chrome 132+ on macOS; Firefox 139+ on macOS), Google Password Manager (Chrome on Android and desktop when signed in, Chrome 132+; Edge on Android), Windows Password Manager (Windows 11 25H2+), 1Password, YubiKey 5C Nano, Proton Pass.
+- Does not work: Chrome local profile, Bitwarden, Dashlane.
+- Native apps need iOS 18+ or Android 9+.
+- Known caveat: Safari cross-device (QR/hybrid) flow returned PRF inconsistently; after 18.2 it returns a different value than on-device. Portaj must warn that the same device should be used, and Mode B recovery depends on it.
+
+## 11. Failure handling and recovery
+
+| Failure | Detection | Handling |
+|---|---|---|
+| PRF unsupported | `prf.enabled` false / no results | Fallback §10.4 |
+| Sponsor out of funds or rate limited | Sponsor service refusal | Plain message; no partial state |
+| tx1 fails | Submit result | Nothing moved; retry |
+| tx2 fails | Submit result | Nothing moved; retry |
+| tx2 succeeds, tx3 fails | G USDC balance > 0 | "Resume exit" (re-derive, resubmit) or "Return to my wallet" (tx4) |
+| Destination lacks USDC trustline | tx3 `op_no_trust` | Stop; offer "Return to my wallet" |
+| Memo required but missing | SEP-29 data entry | Block before tx2 |
+| Wrong issuer / look-alike USDC | Asset check | Block |
+| PRF value differs on another device | Derived G has no account | Warn "use the device you started on"; funds remain safe in the original G |
+
+## 12. Testnet exchange simulator
+
+Testnet has no real exchanges, and the builder confirmed a testnet demo is acceptable. Portaj ships a clearly labeled simulator so the "after" is visible on testnet.
+
+- One testnet G deposit account with the SEP-29 data entry `config.memo_required = 1`.
+- A page that reads Horizon payments to that account and credits a balance per memo, the way exchanges do.
+- **Credits only classic `payment` operations with a memo.** Contract transfers and memo-less payments land on-chain but are not credited, mirroring SDF's statement that exchanges do not support transfers from contracts and the SEP-29 memo flow.
+- Label on screen: "Testnet exchange simulator. Real exchanges behave this way per SDF documentation."
+- Optional: one recorded mainnet run to a real exchange with a small amount, shown in the video only. Not required.
+
+## 13. Non-functional requirements
+
+- **No custody.** Portaj never stores or transmits the user's G seed or smart-wallet keys. The only server key is the sponsor key.
+- **Sponsor key safety.** Held server-side (environment secret). The sponsor service only signs tx1 shapes and fee bumps whose inner tx source is a G it sponsored. It refuses arbitrary transactions.
+- **Abuse limits.** Per-credential and per-IP limits on setups; balance floor; testnet live demo by default.
+- **Transit guarantee.** After a successful exit, G holds 0 USDC and 0 XLM.
+- **Verifiability.** Every step yields an explorer link.
+- **Mobile first.** Works at phone width; passkey prompts on iOS and Android.
+- **Plain language.** No hype words in UI or README.
+
+## 14. Architecture and stack
 
 ```
-/              landing
-/send          pay one person or a list
-/claim?...     one waiting payment (the link senders share)
-/inbox         everything waiting for an address
-/activity      everything an address has sent
-/integrate     for wallets and payout apps that want to send through Mora
-/try           testnet walkthrough without a wallet (P1)
+Browser (Next.js, TypeScript)
+  ├─ WebAuthn PRF ──► derive G key (in memory only)
+  ├─ passkey-kit (Mode A smart wallet, SEP-41 transfer)
+  └─ calls ──► /api/sponsor (serverless)
+                  ├─ builds + signs tx1 (sponsor) and fee bumps
+                  ├─ rate limits, balance floor
+                  └─ submits to Stellar RPC / Horizon
+Stellar testnet
+  ├─ Circle USDC (classic asset + SAC)
+  ├─ passkey-kit smart wallet v0.17.0 (WASM hash 97ce0478…a764e)
+  └─ Exchange simulator deposit account (SEP-29 memo_required)
+Simulator page ──reads Horizon payments──► credits by memo
 ```
 
-Every page has a network switch (Mainnet beta / Testnet), a Connect Wallet button using Stellar Wallets Kit, and on mainnet a persistent banner: "Beta. The contract is unaudited. Payments are capped."
-
-### 6.1 Landing `/`
-
-- Headline: "Payments that wait." One sentence under it from §1.
-- The three outcomes (Delivered, Waiting, Returned) as three short tiles.
-- Two buttons: **Send a payment** and **Check for payments**.
-- Three short sections below: for payout operators, for recipients, for partner apps.
-- One line of live numbers from the index, per network: delivered, waited, claimed, returned (P1).
-
-### 6.2 Send `/send`
-
-**Asset.** Picked from the connected wallet's balances, limited to supported assets (§9).
-
-**Recipients.** Either one address and amount, or a pasted list, one `address, amount` per line, or addresses only with "same amount for all". G- and C-addresses are accepted. M-addresses are rejected with an explanation. Duplicate addresses are merged with a notice. Amounts use exact 7-decimal integer math, never floats.
-
-**Readiness preview.** Before anything is signed, each row gets a chip, read live from the network:
-
-| Chip | Meaning |
-|---|---|
-| Ready | Will be delivered |
-| Will activate account | XLM only: the amount is enough to create their account (Protocol 26; depends on F3) |
-| Will wait: no {ASSET} trustline | Will wait until they claim |
-| Will wait: account not active | Will wait; they need to fund their account before claiming |
-| Will wait: needs issuer approval | Asset requires issuer authorization |
-| Blocked: needs a memo | The address requires a memo (SEP-29), which usually means an exchange. Soroban transactions can't carry memos, so Mora refuses to send rather than lose the deposit. |
-| Invalid | Not a valid address |
-
-Under the table: "Preview. The network decides when you send."
-
-Optional (P2): a "Without Mora" line that simulates the same payments as plain transfers and shows which would fail.
-
-**Return window.** 7, 14, or 30 days, limited by the network's maximum storage lifetime (probed, not hardcoded). Testnet adds a 5-minute option for demos. Shown as a date estimate. Note: "Sending again to someone already waiting adds to that payment and moves its return date to the later one."
-
-**Review.** Totals, network fee estimate from simulation, beta cap check on mainnet. One signature.
-
-**Result.** One row per recipient: Delivered, or Waiting with its reason and two actions, **Copy link** and **Share** (Web Share API on phones, WhatsApp, X, and email intents on desktop). Summary line: "3 delivered, 2 waiting, 0 failed."
-
-**Large lists.** Each signature covers up to the measured `max_items` (§11). Longer lists split automatically into several signatures with a progress view (P1, needed for real payroll sizes). Until then, the cap is shown.
-
-**Errors.** Insufficient balance is caught in the preview. A rejected signature shows "Nothing was sent. Nothing left your wallet."
-
-### 6.3 Claim link `/claim?network=&from=&to=&asset=`
-
-The page senders share, and for most recipients their first contact with Mora. It reads the waiting payment straight from the contract, with no index involved, so a link works even if every Mora server is down.
-
-- **Payment card:** amount, asset (code, issuer domain for known assets, full issuer address), sender, why it's waiting, return date.
-- **Connected wallet is the recipient:** a **Claim** button. Before signing, the page simulates the claim and explains anything that will happen: "Claiming adds USDC to your wallet. Stellar sets aside 0.5 XLM of your balance while USDC stays added." The reserve figure is read from the network. If their free XLM is too low, the page says exactly how much they need instead of offering a button that would fail.
-- **Connected wallet is someone else:** "This payment is for G…ABCD. Switch to that account in your wallet."
-- **No wallet:** wallet picker, plus links to install LOBSTR or Freighter.
-- **Return date passed:** a **Return to sender** button, available to anyone.
-- **After a successful claim:** one quiet line, "Pay your own people with Mora," linking to `/send`. This is the growth loop in §5; it is not a pop-up.
-
-| State | Shown |
-|---|---|
-| Loading | Skeleton card |
-| Waiting | Card + Claim |
-| Claimed | "Claimed by the recipient" with transaction link |
-| Returned | "Returned to the sender" with transaction link |
-| Nothing here | "Nothing is waiting under this link." |
-| Blocked at simulation | The reason in plain words; no signature requested |
-| Network unreadable | `UNKNOWN` and a retry. Never "nothing here". |
-
-Phone-first. Phone wallets connect through WalletConnect or Freighter mobile.
-
-### 6.4 Inbox `/inbox` (P1)
-
-- Connect a wallet, or paste any address for a read-only view.
-- Every payment waiting for that address, from every sender and every app that uses Mora, each one confirmed against the contract before it's listed. Paginated.
-- **Claim all**: one signature for everything claimable, using `claim_many`.
-- Footer: "Checked at ledger N."
-
-### 6.5 Activity `/activity` (P1)
-
-- Everything the connected address has sent through Mora: recipient, amount, status, return date. Paginated.
-- Filters: Waiting, Delivered, Claimed, Returned.
-- Actions per payment: **Copy link**; **Return** after the return date; **Deliver now** when a waiting recipient has since become ready (P2, sender pays the fee).
-- **Export CSV** for operators reconciling a payout (P2).
-- If the index is cut, Activity falls back to payments sent from this browser, kept in local storage and re-checked against the contract.
-
-### 6.6 Integrate `/integrate`
-
-For wallets and payout apps. This page brings partners to Mora; it is not where the product lives.
-
-- What partners get: their users' failed payments become waiting payments that claim in Mora.
-- The one-line change (`token.transfer` to `mora.send`) for contracts, and the `mora-sdk` snippet for apps.
-- Contract ID per network with explorer links, and deployment parameters.
-- The claim link format, so partners can send their users straight to Mora.
-- Public read API (§12), so wallets can show "you have payments waiting".
-- Limits: SAC assets only, no memos, unaudited.
-
-### 6.7 Testnet faucet
-
-"Get 100 TESTUSD" on `/try` and on the landing page when the network switch is on Testnet. The faucet pays **through Mora**. A new tester doesn't have a TESTUSD trustline, so their first experience is a payment waiting for them that they claim with one signature. Rate limited per address and IP.
-
-### 6.8 Try it `/try` (testnet, P1)
-
-For anyone without a Stellar wallet, including judges. One click creates two keypairs that live only in the tab, labeled "Demo keys. This tab only. Testnet." Friendbot funds them, then a guided walkthrough runs real testnet transactions: claim from the faucet, send to three demo recipients (two not ready), switch to a recipient and claim, then return the last one after a 5-minute window. Every step links its transaction. Nothing is simulated.
-
----
-
-## 7. Core flows
-
-**A. Sender pays a list**
-
-1. Sender connects a wallet, picks an asset, pastes recipients.
-2. App reads account, trustline, and SEP-29 data entries for every recipient in one RPC call and shows the readiness preview.
-3. App builds `send_many`, simulates it, and shows fees and expected outcomes.
-4. Sender signs once. App submits and waits for the result.
-5. App posts the transaction hash to `/api/v1/ingest`, which reads the confirmed transaction from RPC and indexes its Mora events.
-6. Results screen shows outcomes and share links.
-
-**B. Recipient claims**
-
-1. Recipient opens the link. The page reads `parcel(from, to, token)` from the contract.
-2. Recipient connects a wallet. The page simulates `claim`.
-3. If the simulation returns Claimed, the page asks for one signature. If it returns Blocked, the page shows why and asks for nothing.
-4. One signature. Inside the transaction, Mora calls the SAC `trust` function if needed and transfers.
-5. Success screen: amount received, and "USDC was added to your wallet" when a trustline was created.
-
-**C. Money comes back**
-
-After the return date, anyone presses **Return to sender** on the link or in Activity. The contract sends the payment only to its original sender.
-
-**D. A partner app sends through Mora**
-
-Their contract calls `mora.send`. Mora's events reach the index through the regular sync (§10.4). Their users find the payment in Mora's inbox or through the claim link the partner generates. Mora never needs to know the partner exists.
-
----
-
-## 8. Words the product uses
-
-| Use | Never |
-|---|---|
-| Delivered | Paid, sent (for anything waiting) |
-| Waiting (with a reason) | Pending, failed, stuck |
-| Claimed | |
-| Returned | Refunded, reversed |
-| Ready to return (date passed) | Expired |
-| `UNKNOWN` (network unreadable) | "Nothing here", "0" |
-
-Every amount is in monospace with tabular figures. Every status has a transaction link once it exists.
-
----
-
-## 9. Networks, assets, limits
-
-| Network | Assets (v1) | Notes |
-|---|---|---|
-| Testnet | XLM, TESTUSD | TESTUSD is issued by a Mora testnet account and labeled as a test asset everywhere |
-| Mainnet (beta) | XLM, USDC, EURC (Circle) | Issuer addresses kept in one config file with source links, and checked at startup against each SAC's `name()` |
-
-- **Beta caps (mainnet, enforced in the app):** per batch total, defaults 100 USDC, 100 EURC, 500 XLM (`OWNER DECISION`). They exist because the contract is unaudited, and they come off only after an audit (§17.1). Partners calling the contract directly are not capped; `/integrate` says the contract is unaudited.
-- **Batch size:** `max_items` from the testnet measurement, set at deployment.
-- **Return windows:** §6.2.
-- **Fees:** senders pay their transaction fees; recipients pay the claim fee. Fee sponsorship is on the scale roadmap (§17.1).
-
----
-
-## 10. System architecture
-
-```
-Browser: Next.js app
- ├─ Stellar Wallets Kit ── signs ─────────────────► Stellar RPC ──► Mora contract ──► SACs
- ├─ mora-sdk: build, simulate, read parcels ─────► Stellar RPC
- └─ /api/v1/* (Vercel functions, stateless)
-      ├─ ingest(txHash)   getTransaction ────────► Stellar RPC
-      ├─ sync()           getEvents from cursor ─► Stellar RPC
-      ├─ parcels, stats   read ◄──────────────── Postgres index
-      └─ faucet           testnet key only ──────► Mora contract (testnet)
-```
-
-### 10.1 Stack
-
-- **App:** Next.js (App Router), TypeScript strict, Tailwind v4, deployed on Vercel. Read the installed Next.js docs before using its APIs.
-- **Wallets:** Stellar Wallets Kit, now published on JSR as `@creit-tech/stellar-wallets-kit`. Confirm at install that its modules cover Freighter (extension and mobile), LOBSTR, WalletConnect, and xBull.
-- **Chain:** `@stellar/stellar-sdk`; TypeScript client generated from the deployed contract with `stellar contract bindings typescript`.
-- **Index:** Supabase Postgres.
-- **Contract:** Rust with the installed `soroban-sdk` that supports Protocol 26 or later.
-- **RPC:** testnet public RPC; mainnet provider chosen from the providers list on developers.stellar.org, set by env var, with a second provider as fallback (`OWNER DECISION`).
-- **Error tracking:** one hosted error tracker on the app and API routes (P1).
-
-### 10.2 Demo-only piece
-
-A tiny `baseline-payout` contract on testnet that pays a list with plain SAC transfers. It exists only to show the failure Mora prevents (§18.2) and is labeled "Without Mora" wherever it appears. It is not part of the product.
-
-### 10.3 Built to scale
-
-| Concern | v1 (hackathon) | At scale (no rewrite needed) |
-|---|---|---|
-| Index freshness | After-write, on-read, and daily sync (§10.4) | A continuous ingestion worker on the same cursor and tables |
-| RPC | One provider plus a fallback | Paid tier, two providers, cached reads |
-| Large payouts | `max_items` per signature, automatic splitting in P1 | Same splitting, plus saved lists and scheduled runs for operators |
-| Reads | Paginated from day one | Read replicas behind the same queries |
-| Abuse | Rate limits per IP and address | Per-sender limits, and inbox filtering of senders who only send dust |
-| Contract | Unaudited, capped in the app | Audited, caps lifted |
-| Operations | Error tracking | Alerts on ingestion lag and RPC errors, a public status page |
-
-Rules for v1 that keep this path open:
-
-- Every list query is paginated and indexed on network plus address.
-- Ingestion is idempotent and cursor-based per network, so a dedicated worker can replace the triggers without touching the tables.
-- All RPC access goes through one module with provider fallback.
-- API functions are stateless; nothing lives in server memory.
-- Claiming never depends on Mora's servers: the link reads the contract directly.
-
-### 10.4 Keeping the index current in v1
-
-Stellar ledgers are final when they close, so there are no reorgs to handle. RPC only keeps events for a limited window (another entry in this hackathon measured 7 days on testnet). The index stays complete with three triggers:
-
-1. **After write:** the app posts every transaction hash it submits; ingest reads that transaction directly. Instant for app users.
-2. **On read:** Inbox, Activity, and the landing numbers call `sync` first, which pulls new events since the stored cursor. Rate limited.
-3. **Daily cron:** a Vercel cron calls `sync` once a day, far inside the RPC window, so no event is ever missed even if nobody visits. It also keeps the free Supabase project from pausing. Check current Vercel and Supabase free-plan limits at setup.
-
-Rule: the index lists candidates; the browser reads every amount from the contract before showing it.
-
----
-
-## 11. Smart contract
-
-One contract per network, deployed once, shared by everyone. No admin, no upgrade function, no fee.
-
-### 11.1 Interface (shape; confirm names against the installed SDK)
-
-```rust
-fn __constructor(e: Env, grace_ledgers: u32, max_items: u32);
-
-fn send(e: Env, from: Address, token: Address, to: Address, amount: i128, refund_after: u32) -> Outcome;
-fn send_many(e: Env, from: Address, token: Address, payees: Vec<Payee>, refund_after: u32) -> Vec<Outcome>;
-fn claim(e: Env, from: Address, to: Address, token: Address) -> ClaimResult;
-fn claim_many(e: Env, to: Address, items: Vec<ParcelRef>) -> Vec<ClaimResult>;
-fn deliver(e: Env, from: Address, to: Address, token: Address) -> DoorResult;
-fn refund(e: Env, from: Address, to: Address, token: Address) -> DoorResult;
-fn parcel(e: Env, from: Address, to: Address, token: Address) -> Option<Parcel>;
-
-// Parcel   { amount: i128, refund_after: u32 }         stored under (from, to, token)
-// Payee    { to: Address, amount: i128 }
-// ParcelRef{ from: Address, token: Address }
-// Outcome     = Delivered | Parked(u32)                 u32 = SAC error code
-// ClaimResult = Claimed(i128, bool) | Blocked(u32) | Empty     bool = trustline created
-// DoorResult  = Moved(i128) | StillBlocked(u32) | Empty
-```
-
-The constructor values are set once at deployment and recorded with the contract ID.
-
-### 11.2 Behaviour
-
-| Function | Auth | Behaviour |
-|---|---|---|
-| `send` | `from` | Validate. Pull `amount` from `from` into Mora. Try to transfer it to `to`. Success: `Delivered`. Recipient-side error (§11.3): add to the parcel, set its return ledger to the later of old and new, extend its storage life to the return ledger plus `grace_ledgers`, return `Parked(code)`. Any other error aborts. |
-| `send_many` | `from` | Checked sum, one pull for the total, then the `send` logic per payee. At most `max_items`. One payee's recipient-side error never changes another's outcome. |
-| `claim` | `to` | Try the transfer. Success: `Claimed(amount, false)`. Error 13: call SAC `trust(to)`, try again; success is `Claimed(amount, true)`. Errors 6, 10, 11, or a failed retry: `Blocked(code)`. No parcel: `Empty`. |
-| `claim_many` | `to` | `claim` logic per item, one signature, at most `max_items`. |
-| `deliver` | none | Try the transfer to `to`. Success removes the parcel: `Moved`. Recipient-side error: no change, `StillBlocked(code)`. |
-| `refund` | none | Only after `refund_after`, else aborts with `RefundNotYetAllowed`. Try the transfer to `from`. Same results as `deliver`. |
-| `parcel` | none | Read-only. |
-
-Every state-changing call also extends the contract instance's life so the shared deployment stays reachable.
-
-### 11.3 Recipient-side SAC errors (the only ones that make a payment wait)
-
-| Code | SAC name | Meaning |
-|---|---|---|
-| 6 | `AccountMissingError` | Recipient account doesn't exist (and, for XLM, the amount was too small to create it) |
-| 10 | `BalanceError` | Recipient's trustline limit would be exceeded |
-| 11 | `BalanceDeauthorizedError` | Issuer hasn't authorized the recipient |
-| 13 | `TrustlineMissingError` | No trustline |
-
-Anything else aborts the call, so unknown failures are never hidden as "waiting". Code 10 was added after the original research (which listed 6, 11, and 13) to cover recipients whose trustline limit is too low.
-
-### 11.4 Errors
-
-`InvalidAmount`, `DeadlineInPast`, `DeadlineBeyondMaxTtl`, `TooManyItems`, `RefundNotYetAllowed`, `UnexpectedTransferError`.
-
-### 11.5 Events
-
-Mora emits its own events, which the index depends on and which also cover the trustline creation the SAC doesn't report (E4).
-
-| Event | Topics | Data |
-|---|---|---|
-| `delivered` | `mora, delivered, from, to, token` | `amount` |
-| `parked` | `mora, parked, from, to, token` | `amount, reason, refund_after, parcel_total` |
-| `claimed` | `mora, claimed, from, to, token` | `amount, trustline_created` |
-| `moved` | `mora, moved, from, to, token` | `amount` (from `deliver`) |
-| `returned` | `mora, returned, from, to, token` | `amount` |
-
-### 11.6 Guarantees
-
-- **Solvency:** for each token, Mora's balance is at least the sum of its parcels.
-- **Three exits:** a parcel's money can go only to `to` (claim, deliver) or `from` (refund). Both come from the storage key, never from the caller.
-- **No early return:** `refund` cannot succeed at or before `refund_after`.
-- **Isolation:** inside a batch, one recipient's problem doesn't change anyone else's outcome.
-- **No privileged role:** nobody can pause, drain, upgrade, or redirect.
-
-### 11.7 Decisions
-
-- **SAC assets only.** Waiting keys on SAC error codes, and claiming uses SAC `trust`.
-- **Pull, then push.** The sender authorizes one transfer into Mora whether the payment lands or waits. Costs two transfers per payment.
-- **Unknown errors abort.** Parking them would hide bugs.
-- **No on-chain list per recipient.** It would let anyone fill an inbox with dust. Discovery uses links and the index.
-- **Return dates in ledgers.** Matches storage-life rules. The app converts using probed close times, since Protocol 28 changed ledger timing.
-- **Immutable.** A bug means a new deployment, announced on `/integrate`.
-
----
-
-## 12. Public API
-
-Read endpoints are public so wallets can show "payments waiting". Responses are index candidates, and say so; callers should confirm with `parcel()`. Every list endpoint is paginated with a cursor and rate limited.
-
-| Method | Path | Purpose |
-|---|---|---|
-| GET | `/api/v1/parcels?network=&to=&cursor=` | Waiting payments for a recipient |
-| GET | `/api/v1/parcels?network=&from=&cursor=` | Payments sent by an address |
-| GET | `/api/v1/stats?network=` | Counts for the landing page |
-| POST | `/api/v1/ingest` | `{ network, txHash }`: index a confirmed transaction; idempotent |
-| GET | `/api/v1/sync?network=` | Pull new events since the cursor; rate limited |
-| POST | `/api/v1/faucet` | `{ address }`: testnet only, pays TESTUSD through Mora |
-
-Index tables: `mora_events` (raw, unique on network, tx hash, event index), `mora_parcels` (current state per parcel), `mora_sync` (cursor per network).
-
----
-
-## 13. `mora-sdk`
-
-The app is built on it, and partners get the same package. It is a means of distribution, not a product of its own.
-
-- `readiness(addresses, asset, network)`: the preview chips from §6.2.
-- `buildSend`, `buildSendMany`, `buildClaim`, `buildClaimMany`, `buildDeliver`, `buildRefund`: simulated transactions ready to sign.
-- `getParcel`, `parseOutcome`, `parseClaimResult`.
-- `claimLink({ network, from, to, asset })`.
-- `probeNetwork()`: current ledger, recent close time, base reserve, max storage life.
-
-Publishing to npm is P2. Until then it lives in the repo and `/integrate` shows the snippet.
-
----
-
-## 14. Quality bar
-
-- **Phone first.** The claim page is the most important screen and the most likely to be opened on a phone over a slow connection. It loads without the Send code.
-- **Phone wallets.** Signing a Soroban transaction from a phone wallet is tested on a real device before launch (§19, F5).
-- **No keys in the browser except demo keys** on `/try`, held in memory and labeled. No key on any server except the testnet faucet key.
-- **Accessibility:** keyboard reachable, visible focus, readable contrast, reduced-motion respected.
-- **No third-party trackers.**
-- **Design:** one focal component, the payment card, used on the claim page, inbox, and activity. Monospace numbers. One accent color. Visual reference is an `OWNER DECISION`.
-
----
-
-## 15. Security and trust
-
-| Threat | Protection |
-|---|---|
-| Someone redirects a waiting payment | Exits pay only `to` or `from`, taken from storage |
-| Recipient claims twice | Parcel removed in the same call that pays it |
-| Sender pulls back early | Return blocked until the return ledger |
-| Spam: dust payments to many addresses | Spammer pays fees and storage; no on-chain inbox to fill; the app lists only supported assets |
-| Sending to an exchange without a memo | App blocks SEP-29 addresses; `/integrate` warns partners that the contract can't enforce this |
-| Fake assets in the inbox | v1 lists only supported assets by exact issuer |
-
-What Mora doesn't protect, said in the app and README:
-
-- The contract is unaudited. Mainnet use is capped in the app.
-- `trust` creates a trustline with no limit.
-- Assets that need issuer approval wait until the issuer approves.
-- A recipient needs an active account with a little free XLM to claim, except XLM payments large enough to activate the account.
-- After the return date plus grace, an unreturned payment's storage can be archived. Returning it then costs a small extra restore fee, which the app shows before signing.
-
----
-
-## 16. Launch proof and metrics
-
-**Mainnet pilot.** Using only the live app, the builder pays a small amount of USDC (for example 1 USDC) to a group of real people, at least some of whom don't have USDC added. Publish, with transaction hashes and denominators:
-
-- how many were delivered and how many waited
-- how many claimed, and median time to claim
-- how many were returned
-- aborted batches (target: 0)
-
-Label it "builder-run pilot". It shows the product working for real people; it is not organic usage. Start it as soon as mainnet send and claim work, because people take hours to respond.
-
-**Product metrics after launch:**
-
-- weekly active senders and payout operators
-- payments by outcome, and the share of waiting payments that get claimed
-- median time to claim
-- recipients who later send with Mora (the growth loop in §5)
-- partner apps sending through the contract
-- aborted batches (target: 0)
-
----
+- Frontend: Next.js + TypeScript, deployed at a public URL.
+- Chain: `@stellar/stellar-sdk` 17.2.1, Stellar RPC for Soroban, Horizon for classic payments and account data.
+- Wallet: passkey-kit at commit `74210a433abc2943f33f4747aa6d33be98bfa539`.
+- No Soroban contract written by Portaj.
+
+## 15. Screens and copy
+
+1. **Home:** "Send USDC from your passkey wallet to any exchange. No XLM. No seed phrase." Buttons: "Exit to an exchange", "Try it on testnet".
+2. **Exit form:** address, memo, amount; memo-required check; "Continue with passkey".
+3. **Your exit account:** shows G; "Set up (paid by Portaj)" on first run.
+4. **Mode B wait screen:** "Send exactly X USDC to your exit account from your wallet." Live balance.
+5. **Sending:** step list with live status for each transaction.
+6. **Receipt:** three links, "Your exit account holds 0 XLM", memo as sent.
+7. **Before panel:** "Try the normal way" with the verbatim network error.
+8. **Testnet exchange simulator:** per-memo credited balances, uncredited contract transfers listed separately.
+9. **Recovery:** "Resume exit" and "Return to my wallet".
+
+## 16. Demo moment, claim and judge verification
+
+### Demo moment (under 30 seconds, testnet)
+- **Before:** a passkey smart wallet sends 20 USDC to the exchange simulator's address with a memo. The network rejects it: "Soroban transactions are not allowed to use memo or muxed source account".
+- **After:** same wallet, Portaj, one passkey prompt, two transactions. The simulator shows +20 USDC credited to that memo. Overlay: "XLM held by user: 0. Seed phrases: 0."
+
+### The claim
+"With Portaj, a smart-wallet user's USDC cannot be stranded for lack of a memo, a trustline or XLM."
+
+### How a judge checks it
+1. The "before" error string matches stellar-core's `validateSorobanMemo` rule.
+2. On stellar.expert the user's G shows native balance 0, account and trustline reserves sponsored by the Portaj sponsor.
+3. The final payment has the memo, goes to the deposit address, and its fee is paid through a fee bump.
+4. They repeat it with their own passkey smart wallet on testnet from the live URL.
+
+### Judge's first 30 seconds
+- Video: the before/after above.
+- README: one sentence, the claim, three explorer links, a "verify it yourself" list.
 
 ## 17. Scope
 
-| Priority | In it |
-|---|---|
-| **P0** | Contract on testnet and mainnet; landing; `/send` (single and list) with readiness preview; `/claim` link page with claim and return; `/integrate` with contract IDs and the one-line change; testnet faucet through Mora; beta caps and unaudited banner; mainnet pilot; `baseline-payout` on testnet for the demo |
-| **P1** | Index, `/inbox` with Claim all, `/activity`, landing numbers, public read API, automatic splitting of long lists, `/try`, error tracking |
-| **P2** | "Without Mora" line in the preview; Deliver now; federation names (`name*lobstr.co`); CSV upload and export; npm publish |
-| **P3** | Muxed and memo support; more assets |
+### In
+- Live web app at a public URL.
+- Passkey sign-in with PRF, deriving the user's own G key in the browser.
+- Sponsored creation of that G account plus USDC trustline, through a sponsor service with a per-passkey rate limit.
+- SEP-41 transfer from a passkey-kit smart wallet to the user's G (Mode A) and detection of a user-sent transfer (Mode B).
+- Classic USDC payment with memo from G to the exchange address, fee-bumped by the sponsor.
+- Receipt page with three explorer links.
+- Same-session one-time key fallback when PRF is unavailable.
+- Recovery: resume exit, return to wallet.
+- Testnet exchange simulator and judge onboarding (test wallet, test USDC).
 
-**Cut order if behind:** `/try`, then P2 items, then landing numbers, then automatic list splitting (show the cap instead), then the public API docs, then the index (Activity falls back to this browser's history; claiming works through links). Never cut: landing, send, claim link, return, mainnet, a minimal `/integrate`.
+### Out
+- Inbound direction (exchange to smart wallet).
+- Assets other than USDC.
+- Anchors, MoneyGram, or any direct fiat cash-out.
+- An SDK or embed for other wallets.
+- Fees, pricing or business model.
+- Native mobile app.
+- Any custody of user keys or funds by Portaj.
+- Stellar Passport integration.
 
-### 17.1 After the hackathon: scale roadmap
+## 18. Judging criteria mapping
 
-Not part of v1. Listed so v1 choices don't block it.
-
-- Audit the contract, then lift the beta caps.
-- Continuous ingestion worker, paid RPC tier, alerts, and a public status page (§10.3).
-- Team workspaces for payout operators: saved recipient lists, scheduled payouts, approvals, exports.
-- Fee sponsorship so recipients with no XLM can claim, the biggest onboarding gap in emerging markets.
-- Cash-out: after claiming, hand recipients to a local anchor to withdraw to their bank.
-- Spanish, Portuguese, and other local-language copy for the markets Mora pays into.
-
----
-
-## 18. Hackathon
-
-### 18.1 Facts
-
-| | | Status |
+| Judging criterion | Weight | How Portaj satisfies it |
 |---|---|---|
-| Dates | September 1 to October 12, 2026 | VERIFIED, stellarpassport.xyz |
-| General Track | US$4,000: 1st $2,000, 2nd $1,000, 3rd $500, two honorable mentions $250 | VERIFIED |
-| University Track | Chilean university students only | VERIFIED; not eligible |
-| Teams | 1 to 5 | VERIFIED |
-| Submission close | October 5, 4:00 p.m. | Date VERIFIED, **timezone not stated**. Organizers appear Santiago-based; if Chile time, about 20:00 Lagos time. Confirm on the page. |
-| Registration | A Stellar Passport account alone doesn't register you; register on the hackathon page and create or join a team | VERIFIED |
-| Judging criteria | Not visible | **UNKNOWN**; paste into §18.3 when found |
+| Technical execution | unweighted | Two-transaction flow across Soroban and classic: SEP-41 transfer out of a passkey-kit smart wallet, then a classic memo payment from a sponsored 0-XLM account, all verifiable on an explorer |
+| Meaningful use of Stellar | unweighted | Built on rules only Stellar has: memos are banned on contract invocations, reserves gate trustlines, and sponsored reserves plus fee bumps let a third party carry them |
+| Originality | unweighted | No product found that moves USDC from a Stellar smart account to an exchange memo deposit (prior art: CLEAR) |
+| Potential impact | unweighted | Removes a blocker for every smart-wallet user who wants fiat through an exchange; smart accounts are a stated HackMeridian 2026 priority |
+| User experience | unweighted | Paste address and memo, one passkey prompt, done. No XLM purchase, no seed phrase, no trustline prompt |
+| Presentation quality | unweighted | The "before" is the network's own error string; the "after" is an exchange balance going up. Under 30 seconds |
 
-### 18.2 Demo (3 minutes, the product in a live browser)
+## 19. Submission requirements and README
 
-1. **0:00** "Without Mora": the `baseline-payout` contract pays five testnet recipients, two without a trustline. The whole run fails. **0 of 5 paid.**
-2. **0:20** `/send` on mainnet, the same shape of list: the preview marks two as "Will wait: no USDC trustline". One signature. Result: 3 delivered, 2 waiting. Share one link to WhatsApp.
-3. **1:00** On a phone: the recipient opens the link, connects LOBSTR, taps Claim, signs once. USDC appears in their wallet.
-4. **1:50** `/activity`: a testnet payment with a 5-minute window is returned to the sender.
-5. **2:20** `/integrate`: a payment sent by another contract shows up in the same inbox.
-6. **2:45** Pilot numbers with denominators. **5 of 5 resolved, 0 aborted, 1 signature to claim.**
+### Submission form (from the event's `submission_schema`)
+- Project name: Portaj.
+- Describe your project.
+- Submission Track: General Track.
+- Email.
+- Link to repo (must be open source).
+- Link to video pitch (3 minutes max).
+- Other relevant links: live URL, explorer links.
+- Accept Stellar Passport Terms and Conditions.
 
-### 18.3 Judging criteria mapping
+### README must contain
+- One sentence of what it does.
+- The claim and the "verify it yourself" list (§16).
+- The mechanism diagram (§5).
+- Specs: transaction shapes (§9), key derivation (§10), recovery (§11).
+- Testnet addresses: sponsor, simulator deposit account, USDC issuer.
+- Source references proving the problem (stellar-core `validateSorobanMemo`, SDF smart-wallet docs).
+- Limits: PRF authenticator list, Safari cross-device caveat, simulator label.
 
-Replace with the real criteria. Default mapping until then:
+## 20. Risks, kill criteria and open questions
 
-| Likely criterion | Where Mora answers it |
-|---|---|
-| Innovation | First shared fix for a failure every Soroban payout app hits; first use of SAC `trust` in the field |
-| Technical execution | §11 contract, §10 architecture, tests |
-| Real-world impact | Live on mainnet, pilot with real people (§16), growth loop (§5) |
-| Use of Stellar | Protocol 26 SAC `trust`, SAC error semantics, storage-life rules, constructors |
-| UX | One signature to send a list, one to claim, phone wallets |
+### Kill criteria
+- A major exchange starts crediting SAC transfers from C-addresses, or SDF ships muxed C-addresses that exchanges index. Narrow to the inbound direction or drop.
+- PRF missing or inconsistent on the demo device (Safari cross-device issue). Use the same-session one-time key and never leave funds in G after the session.
+- passkey-kit wallet creation fails on testnet. Use the existing v0.17.0 deployment.
+- The sponsor key gets drained by scripted account creation and cannot be rate-limited. Keep the public live demo on testnet.
 
-For a technical judge, one line: "a dead-letter queue for Stellar payments."
+### Resolved
+- Judges list: none published (confirmed by the builder). Remains `UNVERIFIED`; design for Stellar Chile ambassadors and SDF devrel.
+- Network: testnet demo is acceptable (confirmed by the builder). Mainnet risk removed.
 
-### 18.4 Positioning
+### Still open (the builder could not find answers)
+- Whether Stellar Passport wallets are smart wallets (C-addresses). If yes, Passport users are the named population.
+- Whether any exchange already credits transfers from smart wallets. If one does, the core claim breaks for that exchange (kill criterion above). Treat SDF's docs as current until shown otherwise.
+- P2P naira reversal window (relevant only to the runner-up).
 
-| Project | Relation |
-|---|---|
-| Classic claimable balances | Same promise, unavailable to contracts and smart wallets |
-| Authline (SCF) | CAP-73 onboarding for issuers and exchanges; Mora covers payers. Complementary. |
-| Per-project fallbacks (Appendix A) | What Mora replaces |
-| stellar-address-kit | Deposit routing, a different problem |
-| Visible entries in this hackathon | Tessera and VLock (voting). No overlap. |
+### Other risks
+- Small smart-wallet user base today. Mitigation: the judge can create a wallet and run the flow during judging, so the "needs users" red flag does not fully apply.
+- "Do not use PRF to derive encryption keys for data" warnings exist in the passkey community (https://lilting.ch/en/articles/passkeys-prf-extension-encryption-risk). Portaj uses the key only for a transit account that holds funds for one ledger; the risk is stated in the README.
 
----
+## 21. Validation message
 
-## 19. Milestones
+Post in the Stellar developer Discord (https://discord.com/invite/stellardev) and the Stellar Passport organizers' channel. Status: PENDING USER.
 
-Ordered. Each one is passed when its check is true in the hosted app, not just locally.
+> Hi, I'm building Portaj for Find Your Way. Passkey smart-wallet users can't send USDC to exchange deposits, because Soroban transactions can't carry a memo and exchanges don't credit contract transfers. Portaj routes the funds through the user's own passkey-derived G account, created with sponsored reserves (0 XLM, no seed phrase), and pays the exchange with the memo. Is this a smart-account use you'd want to see, and is anyone at SDF already fixing C-address exchange withdrawals?
 
-| Milestone | Passed when |
-|---|---|
-| **M0 Feasibility** | F1: a contract catches SAC error 13 and keeps running. F2: `trust` inside `claim` with recipient auth creates the trustline and the transfer lands, one transaction. F3: XLM through the SAC from a contract activates a new account when large enough. F4: constructor and storage-life APIs confirmed in the installed SDK. F5: a phone wallet signs a Soroban call. F6: `max_items` and fees measured on testnet. |
-| **M1 Contract** | Mora and `baseline-payout` deployed on testnet; tests cover every row of §11.2, every guarantee in §11.6, and early-return, double-claim, and wrong-claimer attempts. |
-| **M2 Testnet app** | On the public URL, a stranger can get TESTUSD from the faucet, send a list, share a link, claim on a phone, and return a payment. |
-| **M3 Mainnet** | Contract deployed with measured parameters. A real USDC payment is sent, waits, and is claimed through the public URL. Caps and banner live. |
-| **M4 Pilot** | §16 pilot run and published. |
-| **M5 Index** | Inbox, Activity, Claim all, landing numbers, public API live. A payment sent by a separate test contract appears in the inbox. |
-| **M6 Integrate** | Snippets on `/integrate` verified by actually running them. |
-| **M7 Try it** | `/try` completes end to end on testnet. |
-| **M8 Submit** | README, video, and submission filed before the confirmed close. Feature work stops two hours before it. |
+## 22. Success measures
 
----
-
-## 20. Risks and kill criteria
-
-| If | Then |
-|---|---|
-| F1 fails (error can't be caught) | Mora can't be built as designed. Stop and pick the runner-up idea. |
-| F2 fails (`trust` can't run inside claim) | Claiming becomes two steps: add the asset in your wallet, then Claim. Say so on the claim page. |
-| F3 fails (XLM from a contract doesn't activate new accounts) | XLM to inactive accounts waits like any other asset. Remove the "Will activate account" chip. |
-| F5 fails (phone wallets can't sign) | Launch with desktop wallets, show the limitation on the claim page, keep testing phone wallets. |
-| Mainnet deployment and storage costs exceed the XLM budget | Measure Mora's real cost on testnet first; extend mainnet storage life only as far as needed. Another entry measured 181.70 XLM to keep a 21 KB contract alive 180 days on testnet, so budget for it. |
-| Mainnet RPC provider rate limits | Second provider in env, switched without redeploying |
-| A shared payer-side fallback already exists | Reposition Mora as the product layer on top of it, or stop |
+- During judging: a judge completes an exit on testnet from the live URL without help.
+- On every completed exit: G holds 0 USDC and 0 XLM afterwards; memo matches input; three explorer links resolve.
+- After the event: Stellar Passport or a passkey-kit wallet team asks to link to Portaj; SDF showcases it under smart accounts.
 
 ---
 
-## 21. Owner decisions
+## 23. Appendix A · Event intel in full
 
-| Decision | Default |
-|---|---|
-| Domain or Vercel subdomain | `mora` on Vercel, if available |
-| npm package name | `mora-sdk`, if available |
-| Mainnet beta caps | 100 USDC, 100 EURC, 500 XLM per batch |
-| Mainnet RPC providers | First free option on the developers.stellar.org list, plus one fallback |
-| XLM budget for mainnet deployment and storage | Set after the testnet measurement |
-| Pilot size and amount | 10 people, 1 USDC each |
-| Can a sender cancel before the return date? | No |
-| Visual style reference | Clean, light and dark, Stellar-native accent |
-| Revenue model | None in v1 (§5) |
+### Sources of event data
+- Public page (client-rendered, empty without JS): https://demo.stellarpassport.xyz/hackathons/find-your-way-meridian-hackathon
+- Full spec as JSON: https://demo.stellarpassport.xyz/api/hackathons/find-your-way-meridian-hackathon
+- Only hackathon on the Passport API: https://demo.stellarpassport.xyz/api/hackathons
+
+### Tracks, quoted exactly
+General Track:
+> "The General Track is open to builders creating projects that use Stellar or contribute meaningfully to its ecosystem. Participants can submit solutions across areas such as payments, financial inclusion, tokenization, smart contracts, developer tools, wallets, identity, commerce, education, and public goods. Projects will be evaluated based on technical execution, meaningful use of Stellar, originality, potential impact, user experience, and presentation quality."
+
+University Track:
+> "The University Track recognizes promising student builders currently enrolled at a university in Chile. Participants must create a project using Stellar and submit a pitch video explaining the problem, their solution, how the project works, and how it uses Stellar technology. To qualify, participants must also provide valid proof of current university enrollment in Chile."
+
+### Other event fields
+- `team_min` 1, `team_max` 5, `attendance_points` 50, `winner_points` 0. Prize places carry Passport points (1st 500, 2nd 250, 3rd 200, honorable mentions 100, university 250).
+- Registration: GitHub profile required.
+
+### Organizer: Stellar Passport
+- Passkey onboarding with embedded Stellar wallets and a Soroban StampRegistry of non-transferable participation stamps.
+- Built by a long-time Stellar ecosystem member who serves "as President of the Stellar Ambassador Program in Chile", through a US-based studio.
+- Deployed at Meridian 2025: "more than 2,000 QR scans and over 450 sign ups in less than two days".
+- Success metric: "At least one other Stellar project or program uses Passport data, directly, or through exports, to drive follow-up actions".
+- Wish-list: "small event action budgets, simple cash-out flows to external wallets, more advanced quests (send, swap, mint, try an app), and deeper post-event funnels."
+- SCF #40, $150.0K Build award.
+- Sources: https://communityfund.stellar.org/submissions/recNtjEdsDndBoRBD · https://communityfund.stellar.org/dashboard/submissions/recNtjEdsDndBoRBD · https://bastianstudio.notion.site/stellar-passport-architecture
+
+### HackMeridian (destination event)
+- 25 to 26 Oct 2026, ONE16, Lisbon; up to $30,000 in XLM; Genesis and Scale tracks; solo applicants welcome; AI-assisted development allowed; travel support for selected participants.
+- Priorities: smart contracts, smart accounts, cross-chain transfers.
+- Build page says criteria are published there, but none render: https://www.hackmeridian.com/build
+- https://www.hackmeridian.com/ · https://www.hackmeridian.com/faq · https://www.hackmeridian.com/events
+
+### Recent Stellar shipments (last ~90 days)
+| Date | Shipment | Source |
+|---|---|---|
+| 2026-09-28 | Soroban Rust SDK v28: executable references (CAP-85), migration-friendly contract data (CAP-86), sparse events, spec shaking v2 | https://stellar.org/blog/developers/soroban-rust-sdk-v28 |
+| 2026-09-24 | Confidential stablecoins, issuer-controlled architecture (OpenZeppelin) | https://stellar.org/blog/developers/practical-confidential-stablecoins-an-issuer-controlled-architecture |
+| 2026-09-16 | Protocol 28 "Adapter" mainnet vote (testnet 2026-08-27): CAP-83, CAP-85, CAP-86 | https://stellar.org/blog/developers/introducing-adapter-protocol-28-on-stellar |
+| 2026-09-14 | Pyth Pro live on Stellar mainnet, 3,500+ feeds | https://stellar.org/blog/developers/real-time-prices-for-stellars-4b-tokenized-assets-economy |
+| 2026-08-24 | Stellar Private Payments developer preview, testnet only | https://stellar.org/blog/developers/developer-preview-stellar-private-payments |
+| 2026-07-16 | Monitoring Stellar with Hypernative | https://stellar.org/blog/developers/monitoring-stellar-with-hypernative |
+| 2026-07-08 | Soroban SDK 27.0.0: CAP-71 auth delegation (`CustomAccount::delegate_auth`, `get_delegated_signers`) | https://github.com/stellar/rs-soroban-sdk/releases |
+| 2026 | Circle CCTP live on Stellar, USDC to and from 23 chains, Hooks | https://stellar.org/blog/foundation-news/circle-cctp-is-live-on-stellar |
+
+stellar-core releases: v28.0.0 Protocol 28 (13 Aug), v27.0.0 Protocol 27 with CAP-0071 (05 Jun), v26.0.0 Protocol 26 with CAP-77 (31 Mar). https://github.com/stellar/stellar-core/releases
+
+### Comparable past winners (event type evidence)
+| Event | Winner | What it is | Source |
+|---|---|---|---|
+| Stellar Builder Summit São Paulo 2026 | QuietBook, 1st Enterprise Compliance & RWA | Confidential book-building: sealed bids, provable winner, atomic settlement | https://developers.stellar.org/meetings/2026/08/13 |
+| Stellar Builder Summit São Paulo 2026 | StellarPay, 1st Agentic Payments | One interface for x402, MPP Charge, MPP Channel | same |
+| Stellar Builder Summit São Paulo 2026 | Brazil kit, 1st Anchors & Ramps | PIX on/off-ramp aggregating live quotes from competing anchors | same |
+| Stellar Builder Summit São Paulo 2026 | Privacy wallet, 1st Privacy | Passkey smart wallet with confidential transfers and a yield-earning shielded pool | same |
+| Stellar Builder Summit São Paulo 2026 | Stellar Memory, 1st CLI Plugins & Dev Tooling | Links a Soroban repo to what is live on-chain | same |
+| APAC Stellar Hackathon | Most Innovative Track | Wallet for foreigners in Vietnam to pay any merchant via bank QR, settled on Stellar | https://my.linkedin.com/in/ngjupeng |
+| APAC Stellar Hackathon | Sobre, 3rd prize Grand Finale | Envelope-based remittance allocation for OFW families | https://ph.linkedin.com/in/reru |
+| APAC Stellar Hackathon | PalengkePay, 1st in PH, 5th regional | Market-vendor QR payments, onchain income proof, Soroban escrow credit | https://ph.linkedin.com/in/pejana |
+
+Classification: `mixed`.
+
+## 24. Appendix B · Stellar primitives and overlap zones
+
+Sponsor slot rule: the event has no sponsors, so the "sponsor" in the port and delete tests is the one deep Stellar-native primitive an idea depends on. Stellar Passport counts only if essential.
+
+| ID | Primitive | Essential vs decorative | Known gaps |
+|---|---|---|---|
+| S1 | Anchor layer (SEP-10/24/31/38, MoneyGram Ramps) | Money leaves or enters a bank or cash point vs a link to someone else's app | SEP-6 one-off deposit model (#1902); memos banned on contract calls break C-address on-ramps (#1950) |
+| S2 | Trustlines, issuer auth flags, clawback, claimable balances, sponsored reserves | Safety enforced by protocol vs a plain payment | Trustline/XLM wall (#1956); silent x402 failures (#1935); Freighter #3002, #3011 |
+| S3 | Smart accounts (passkeys, policy signers, CAP-71) | A limit the account enforces vs passkey login only | "transfers from contracts are not supported by exchanges today"; no muxed C-addresses (#1950); passkey lockouts |
+| S4 | Path payments over SDEX, oracles (Reflector, Pyth Pro) | Atomic cross-asset payment with price check vs showing a price | YieldBlox thin-market oracle drain; 7 vs 6 decimals (#1935) |
+| S5 | Privacy (SPP testnet, confidential tokens) | | Small pools leak; deposit retry trap (#428); event leaks (#368) |
+| S6 | Circle CCTP | | Classic vs Soroban USDC collision (#1935); CCTP assumes `mintRecipient` is a contract, use `CctpForwarder` |
+| S7 | Stellar Passport | | Wallets "managed server-side"; no public stamp API found |
+
+Overlap zones: Z1 paying someone not on Stellar yet (S2 + S1); Z2 narrow keys on a shared account (S3); Z3 issuer-level controls as counterparty protection (S2 + S4); Z4 cross-chain USDC that arrives safely (S6 + S2); Z5 participation as a condition on money (S7 + S2). Portaj sits across S2 and S3.
+
+Facts confirmed in docs:
+- AUTH_REQUIRED: "an issuer must approve an account before that account can hold its asset"; revocation "prevents that account from transferring or trading the asset". https://developers.stellar.org/docs/tokens/control-asset-access
+- Claimable balance predicates: UNCONDITIONAL, BEFORE_RELATIVE_TIME, BEFORE_ABSOLUTE_TIME, NOT/AND/OR; creator reclaims only if listed. https://developers.stellar.org/docs/learn/encyclopedia/transactions-specialized/claimable-balances
+- MoneyGram Ramps went live on Solana on 2026-08-11, so it no longer passes the port test. https://egamers.io/solana-gets-direct-access-to-moneygrams-500000-cash-counters-as-ramps-expands-beyond-stellar/
+
+## 25. Appendix C · Pain bank
+
+Format: person loses thing when moment | source | severity.
+
+| ID | Pain | Source | Severity |
+|---|---|---|---|
+| P-01 | Nigerian POS agent loses cash handed over when a fake alert shows "success" and the reversal appears hours later | https://humanglemedia.com/fake-alerts-dubious-stunts-the-digital-scams-draining-nigerias-pos-economy | High, daily |
+| P-02 | Nigerian P2P seller loses naira and crypto when the buyer files an "unauthorised" dispute after release (₦689,908 case) | https://techcabal.com/2025/03/03/how-p2p-traders-navigate-daily-scams-fraud-and-frozen-accounts/ | High |
+| P-03 | P2P seller's crypto locked in escrow by a stalling scammer ("coin locking") | same | Medium |
+| P-04 | P2P trader's bank account frozen by a first-time buyer's transfer | same | High |
+| P-05 | Lagos freelancer loses ~5% per USD→naira conversion, ~30% of a quarter's billing | https://spendfigo.com/blog/the-lagos-freelancers-guide-to-getting-paid-in-dollars-without-losing-30-to-fees | High |
+| P-06 | Freelancer loses weeks of access when a platform freezes the account | same | Medium |
+| P-07 | 35 susu savers lose GH¢156,455 when the collector disappears | https://www.modernghana.com/news/1509821/susu-collector-arraigned-for-allegedly-defrauding.html | High |
+| P-08 | Ajo member loses her payout on her turn when the holder is unreachable | https://www.legit.ng/people/1558842-turn-cash-lady-cries-ajo-contribution-leader-trance/ | High |
+| P-09 | First-time Stellar asset recipient stalls at the trustline/XLM prompt | https://github.com/stellar/stellar-protocol/discussions/1956 | High |
+| P-10 | x402 merchant silently loses payments without a USDC trustline | https://github.com/stellar/stellar-protocol/discussions/1935 | Medium |
+| P-11 | Facilitator under-quotes Stellar USDC by 10x (7 vs 6 decimals) | same | Medium |
+| P-12 | Merchant misses bridged classic USDC while watching Soroban USDC | same | Medium |
+| P-13 | Smart-wallet user cannot withdraw to an exchange | https://developers.stellar.org/docs/build/apps/smart-wallets | High |
+| P-14 | Smart-wallet user cannot attach a memo to a contract call | https://github.com/stellar/stellar-protocol/discussions/1950 | High |
+| P-15 | New Freighter user must acquire XLM first | https://github.com/stellar/freighter/issues/3002 | High |
+| P-16 | User claims spam claimable balance, locks 0.5 XLM, gets pulled to scam links | https://stellar.org/blog/how-to-protect-yourself-from-scammers | Medium |
+| P-17 | Buyer pays for a look-alike asset | same | Medium |
+| P-18 | YieldBlox/Blend depositors lose $10M+ via thin-SDEX oracle manipulation (USTRY ~$1.06 → ~$107) | https://blocksec.com/blog/yieldblox-dao-incident-on-stellar-oracle-misconfiguration-enabled-a-10m-drain | Severe |
+| P-19 | Wallet user locked out when passkey and email recovery fail (2026-09-23 review) | https://uk.trustpilot.com/review/lobstr.co | Medium |
+| P-20 | User sends USDC to a pre-saved wallet donation address, gets back <20% after a $50 fee | same | Low freq, high severity |
+| P-21 | Anchor cannot give reusable receiving instruments (SEP-6 one-off model) | https://github.com/stellar/stellar-protocol/discussions/1902 | Medium |
+| P-22 | Privacy-pool deposit trapped after retry | https://github.com/NethermindEth/stellar-private-payments/issues/428 | Low |
+| P-23 | Privacy-pool payments linkable in small pools | https://stellar.org/blog/developers/developer-preview-stellar-private-payments | Medium |
+| P-24 | Traders lose funds when bot API keys leak (3Commas) | https://www.theblock.co/amp/post/179237/ftx-api-keys-3commas-exploited | Severe |
+| P-25 | Telegram bot users drained $523k | https://decrypt.co/224371/solana-telegram-trading-bot-shut-down-users-drained-523k | Severe |
+| P-26 | Hackathon winners wait 4+ months for prizes (Safe DAATA) | https://forum.safefoundation.org/t/revisiting-the-prize-distribution-process-of-hackathon-a-call-for-simplification-and-transparency/4721 | Medium |
+| P-27 | Incentive budget farmed by fake accounts (Keybase Stellar airdrop ended early) | https://decrypt.co/14672/keybase-ends-stellar-airdrop-thanks-hordes-crappy-fake-accounts | High |
+| P-28 | `BUILDER-OBSERVED` Creator paying giveaway winners in USDC loses hours to failed payments (no trustline/XLM) | builder edge | Medium |
+| P-29 | `BUILDER-OBSERVED` Trader must hand a bot/manager a key that can also withdraw | builder edge; P-24, P-25 | High |
+
+Dropped (with reasons): "Onboarding is hard" (vague); "Users want privacy" (vague); Aid Assist recipients lack restrictions (no loss, no moment); OFW lump-sum remittances (pain inferred from a solution); CAP-85 partial upgrades (protocol admin, solved by Protocol 28); SPP fee not shown, #458 (no loss); partnership impersonation DMs (generic).
+
+Totals: 29 kept, 27 with external sources.
+
+## 26. Appendix D · All 14 candidates
+
+| ID | Idea | Port | Delete | Outcome and reason |
+|---|---|---|---|---|
+| C-01 | Held Release: P2P USDC goes into a claimable balance the buyer claims after the bank-reversal window; seller can reclaim inside it | PASS | PASS | Runner-up (22). Seller reclaim creates a new way to cheat buyers; timelock escrow is portable; buyers need Stellar wallets |
+| C-02 | **Portaj** | PASS | PASS | **Winner (23)** |
+| C-03 | Esusu Lock: each daily deposit locked as a claimable balance for the saver until month-end; collector never holds the pot | PASS (weak) | PASS | Third (19). Crowded (Esusu on Celo live); savers need a cash-in route |
+| C-04 | Turn Lock: ajo round contributions claimable only by that round's recipient | PASS (weak) | PASS | Dropped: does not touch the real ajo failure (members who already collected stop paying) |
+| C-05 | Stamp Budget: event budget released only to wallets with the Passport stamp | PASS | PASS | Killed: no public stamp read found (feasibility 0); on the organizer's own roadmap |
+| C-06 | Agent Leash: delegated signer pays only x402 receivers with trustlines | FAIL | PASS | Dropped: EVM session keys do the same; crowded category |
+| C-07 | Cashier Key: attendant can only refund the original payer within 10 minutes | FAIL | PASS | Dropped: portable; misses the actual fake-alert loss |
+| C-08 | Ledger Till: "paid" only from the ledger with per-sale muxed ID | FAIL | FAIL | Dropped: any chain; muxed IDs swappable |
+| C-09 | Depth Ejector: measure SDEX depth behind Blend oracles; withdraw-only key pulls deposits | PASS | PASS | Killed: Blend withdraw and oracle mapping unverified, exceeds a solo 3-day budget (feasibility 0) |
+| C-10 | Trade-only Key: bot signer limited to swaps to owner within an oracle band | FAIL | PASS | Dropped: EVM session keys plus Chainlink |
+| C-11 | Code Cash: hash-locked USDC claimed by a POS agent with the pickup code | FAIL | PASS | Dropped: HTLCs are standard elsewhere; MoneyGram Ramps now on Solana |
+| C-12 | Envelope Asset: AUTH_REQUIRED voucher spendable only at an approved school | PASS (weak) | PASS | Dropped: pain sourced only from a solution; needs merchants onboarded |
+| C-13 | Naira Lane: SEP-38 quotes across NGN anchors replace P2P | PASS | PASS | Killed: no live NGN anchor with SEP-24/38 (feasibility 0) |
+| C-14 | Inbox Guard: filter claimable-balance spam and look-alike assets | PASS | PASS | Dropped: wallets already resolve asset lists (Freighter #3004); demo is a filtered list |
+
+## 27. Appendix E · Prior art
+
+### For Portaj (verdict CLEAR)
+- Classic G wallets that send to exchanges with a memo (Vesseo "Transfer to exchange"): need XLM, a trustline and a seed phrase. https://help.vesseoapp.com/hc/en-us/articles/31454573016215
+- Drips Wave Stellar withdrawals: wallet must be a G-address, "must hold a small XLM balance", must have the USDC trustline; $1 test then full withdrawal; up to 1 to 3 business days. https://docs.drips.network/wave/withdrawing-rewards
+- mera: PRF-derived keys for EVM and Solana, 2026-08-05; not Stellar, no sponsored reserves, no exchange flow. https://www.category.xyz/blogs/mera-crypto-onboarding-with-only-a-passkey-on-any-network
+- Muxed C-address proposal: discussion only. https://github.com/stellar/stellar-protocol/discussions/1950
+- SEP-29 memo-required flow (exchange side). https://stellar.org/blog/developers/fixing-memo-less-payments
+- rhino.fi: muxed `M…` preferred, no separate memo field, trustline required, 64-bit limit. https://docs.rhino.fi/interacting-with-stellar
+- Circle CCTP on Stellar: assumes `mintRecipient` is a contract; use `CctpForwarder`; 7-decimal USDC. https://developers.circle.com/cctp/references/stellar
+
+Gap: nothing takes USDC out of a Stellar smart account into an exchange memo deposit for a user who holds no XLM and no seed phrase.
+
+### For the other survivors
+- C-01: Trustless Work (Soroban escrow infra) https://docs.trustlesswork.com/trustless-work/getting-started/about-trustless-work; Stellar CLI claimable balance guide https://developers.stellar.org/docs/build/guides/cli/tx-new-create-claimable-balance; exchange P2P escrow. Verdict CROWDED; angle: none mirror the bank reversal window on the crypto leg without a contract or custodian.
+- C-03: Esusu on Celo (3,370+ wallet connections, 13+ groups, 25+ unique participants, mainnet `0xA590a71bA8E750aAC5726252E61a5172a48E35E1`) https://forum.celo.org/t/project-complete-esusu-almond-2025-grant-completion-report/12939; ETHGlobal Esusu https://ethglobal.com/showcase/esusu-5wa6a; CeloSave https://www.karmahq.xyz/project/celosave/about; Ajo https://www.karmahq.xyz/project/ajo-1/about. Verdict CROWDED (narrow angle).
+- C-05: Passport wish-list; human.tech onchain stamps https://docs.passport.human.tech/building-with-passport/stamps/smart-contracts/integrating-onchain-stamp-data. CLEAR, roadmap risk.
+- C-09: Hypernative, Blockaid https://blockaid.io/blog/73-quarantined-how-blockaid-and-stellar-validators-contained-a-10m-price-manipulation-attack, The Strategists https://communityfund.stellar.org/submissions/reckfq6k2nbFdORy0. CROWDED.
+- C-13: São Paulo PIX kit; Globachain https://communityfund.stellar.org/submissions/recFXRB2XM6kLXBFU; Cowrie https://stellar.org/blog/ecosystem/cowries-cross-border-payment-services-for-nigeria-powered-by-stellar. CROWDED.
+
+## 28. Appendix F · Scorecard and source verification
+
+### Scorecard (0 to 3, event type mixed, no weighting)
+| # | Criterion | C-02 Portaj | C-01 Held Release | C-03 Esusu Lock | C-05 | C-09 | C-13 |
+|---|---|---|---|---|---|---|---|
+| 1 | Specificity | 2 | 3 | 3 | 2 | 3 | 3 |
+| 2 | Host essential | 3 | 2 | 1 | 3 | 3 | 3 |
+| 3 | Sponsor essential | 3 | 3 | 3 | 3 | 3 | 3 |
+| 4 | Demo moment | 3 | 3 | 2 | 2 | 2 | 2 |
+| 5 | Feasibility | 2 | 3 | 3 | 0 | 0 | 0 |
+| 6 | Defensible claim | 3 | 3 | 3 | 2 | 2 | 1 |
+| 7 | Novelty | 3 | 2 | 1 | 3 | 2 | 2 |
+| 8 | Judging fit | 2 | 2 | 2 | 3 | 2 | 2 |
+| 9 | After-life | 2 | 1 | 1 | 2 | 2 | 2 |
+| | Total | **23** | 22 | 19 | killed | killed | killed |
+
+Portaj notes: specificity 2 because the person is sourced to SDF docs and stellar-core rather than a named individual's loss; feasibility 2 because PRF on unsupported authenticators needs a fallback; judging fit 2 because impact depends on smart-wallet adoption. With testnet now confirmed, the mainnet risk on the demo is gone.
+
+### Source verification for Portaj
+| Dependency | Where | Result |
+|---|---|---|
+| Memo ban on contract calls | stellar-core `src/transactions/TransactionFrame.cpp`, `validateSorobanMemo()`, gated from `ProtocolVersion::V_25`, commit `ba6a4e6e` | Confirmed |
+| Sponsored zero-balance account | stellar-core `CreateAccountOpFrame.cpp` (`createEntryWithPossibleSponsorship`); stellar-base 15.0.0 `create_account.js`, `begin_sponsoring_future_reserves.js`, `end_sponsoring_future_reserves.js` | Confirmed |
+| Fee bump | stellar-base `transaction_builder.js` `buildFeeBumpTransaction` | Confirmed |
+| Key from seed | stellar-base `keypair.js` `fromRawEd25519Seed`, `random` | Confirmed |
+| SEP-29 data entry | stellar-base `manageData` | Confirmed |
+| Smart wallet transfer to G | passkey-kit `src/sac.ts` `buildTokenTransferHostFunction` | Confirmed |
+| Smart wallet deployed | passkey-kit `docs/deployments-2026-09-01.md`: WASM hash `97ce047884106b1c6c3bb40b8973cc48db1c4dad95c9e20462bf2c701daa764e`, soroban-sdk 27.0.0, testnet ledger 4454440, mainnet ledger 64229392 | Confirmed |
+| PRF support | MDN; mera authenticator table; Apple forum Safari caveat | Confirmed with caveats |
+| Testnet USDC | Issuer `GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5`, faucet https://faucet.circle.com | Confirmed (Circle docs) |
+| Exchange credits classic payment with memo | SEP-29 blog, SDF smart-wallet docs | Docs-level; modeled by the testnet simulator |
+
+### Final checklist (all true)
+- Every fact has a URL or is marked `UNVERIFIED`.
+- Passes port and delete-primitive tests.
+- Hits no generic red flag in full.
+- Demo under 30 seconds; claim judges can check.
+- Core verified in current source; fits a solo build with margin if the PRF fallback stays minimal.
+- Maps to the (unweighted) criteria, strongest on meaningful use of Stellar and technical execution.
+- At most two deep primitives, both essential.
+- No build schedule, task breakdown or day-by-day plan.
+
+## 29. Appendix G · Runner-up and third place
+
+### Runner-up: Held Release (C-01, 22)
+- Sentence: for a Nigerian P2P USDC seller, the crypto leg is reclaimable for as long as the naira leg can be reversed, using claimable balances with time predicates.
+- Mechanism: buyer pays naira → seller creates entry `{ buyer: NOT(before T+w), seller: before T+w }` → reversal inside w lets the seller reclaim and the buyer's claim fails → otherwise the buyer claims after T+w in any Stellar wallet.
+- Claim: "a chargeback inside the window cannot take both the naira and the USDC."
+- Why the obvious fix fails: reversals land after the naira already looks final; holding USDC in the seller's own account gives the buyer no proof; platform escrow protects the buyer and is abused for coin locking.
+- Kill criteria: seller reclaim abuse cannot be bounded; reversal windows longer than buyers will wait; buyers will not hold Stellar wallets.
+- Validation message: "Hi, I'm testing Held Release for Nigerian P2P sellers: the USDC goes into a claimable balance the buyer can claim only after the bank-reversal window, while the seller can reclaim inside it. Does this match how you want claimable balances used, and have you seen sellers ask for it?"
+
+### Third: Esusu Lock (C-03, 19)
+- Sentence: each daily esusu deposit becomes claimable only by the saver after month-end; the collector's fee is a separate entry; the collector never holds the pot.
+- Claim: "a collector cannot disappear with the month's savings."
+- Why the obvious fix fails: onchain savings groups remove the collector whose visits drive saving (Esusu on Celo: 3,370+ connections, 25+ unique participants); a vault contract asks a trader to trust unreadable code.
+- Kill criteria: cash-in puts the collector back in custody of the cash leg; no cash-in route at judging time.
+- Validation message: "Hi, I'm exploring claimable balances as daily-savings locks for esusu groups, so the collector keeps the discipline role but never holds the pot. Is this a use you'd want to see?"
 
 ---
 
-## 22. Rules for the coding agent
+## 30. Sources
 
-1. Read this PRD first. Follow the Git commit rules in §23, and cite PRD sections in commit messages.
-2. Confirm every SDK function name against installed source before using it. If the network or SDK disagrees with this PRD, the network wins; record it in `DECISIONS.md`.
-3. Never hardcode ledger close time, max storage life, base reserve, or contract IDs. Probe them or read them from deployment files.
-4. Never show an amount the contract hasn't confirmed. Never show "paid" for a waiting payment. Unreadable network state is `UNKNOWN`.
-5. No mainnet key on any server. No key in source, logs, or URLs.
-6. Nothing labeled live may be mocked. Test assets, demo keys, and `baseline-payout` are labeled on screen.
-7. Paginate every list and keep API functions stateless (§10.3).
-8. Every money-moving change comes with a test that tries to break it.
-9. Report finished work as the files changed and the commands run, with their output.
+Event and host
+- https://demo.stellarpassport.xyz/hackathons/find-your-way-meridian-hackathon
+- https://demo.stellarpassport.xyz/api/hackathons/find-your-way-meridian-hackathon
+- https://demo.stellarpassport.xyz/api/hackathons
+- https://demo.stellarpassport.xyz/api/events
+- https://www.hackmeridian.com/
+- https://www.hackmeridian.com/build
+- https://www.hackmeridian.com/faq
+- https://www.hackmeridian.com/events
+- https://communityfund.stellar.org/submissions/recNtjEdsDndBoRBD
+- https://communityfund.stellar.org/dashboard/submissions/recNtjEdsDndBoRBD
+- https://bastianstudio.notion.site/stellar-passport-architecture
+- https://developers.stellar.org/meetings/2026/08/13
+- https://my.linkedin.com/in/ngjupeng
+- https://ph.linkedin.com/in/reru
+- https://ph.linkedin.com/in/pejana
 
----
+Stellar shipments and docs
+- https://stellar.org/blog/developers/soroban-rust-sdk-v28
+- https://stellar.org/blog/developers/introducing-adapter-protocol-28-on-stellar
+- https://stellar.org/blog/developers/practical-confidential-stablecoins-an-issuer-controlled-architecture
+- https://stellar.org/blog/developers/real-time-prices-for-stellars-4b-tokenized-assets-economy
+- https://stellar.org/blog/developers/developer-preview-stellar-private-payments
+- https://stellar.org/blog/developers/monitoring-stellar-with-hypernative
+- https://stellar.org/blog/foundation-news/circle-cctp-is-live-on-stellar
+- https://github.com/stellar/rs-soroban-sdk/releases
+- https://github.com/stellar/stellar-core/releases
+- https://developers.stellar.org/docs/build/apps/smart-wallets
+- https://developers.stellar.org/docs/tokens/control-asset-access
+- https://developers.stellar.org/docs/learn/fundamentals/transactions/list-of-operations
+- https://developers.stellar.org/docs/learn/fundamentals/anchors
+- https://developers.stellar.org/docs/tools/ramps/moneygram.md
+- https://developers.stellar.org/docs/learn/encyclopedia/transactions-specialized/claimable-balances
+- https://stellar.org/blog/developers/fixing-memo-less-payments
+- https://stellar.org/blog/how-to-protect-yourself-from-scammers
+- https://developers.circle.com/stablecoins/quickstart-transfer-usdc-stellar
+- https://developers.circle.com/cctp/references/stellar
+- https://egamers.io/solana-gets-direct-access-to-moneygrams-500000-cash-counters-as-ramps-expands-beyond-stellar/
 
-## 23. Git commit rules
+Pains and discussions
+- https://github.com/stellar/stellar-protocol/discussions/1950
+- https://github.com/stellar/stellar-protocol/discussions/1956
+- https://github.com/stellar/stellar-protocol/discussions/1935
+- https://github.com/stellar/stellar-protocol/discussions/1902
+- https://github.com/stellar/freighter/issues/3002
+- https://github.com/stellar/freighter/issues/3011
+- https://github.com/stellar/freighter/issues/3004
+- https://github.com/NethermindEth/stellar-private-payments/issues/428
+- https://github.com/NethermindEth/stellar-private-payments/issues/368
+- https://techcabal.com/2025/03/03/how-p2p-traders-navigate-daily-scams-fraud-and-frozen-accounts/
+- https://spendfigo.com/blog/the-lagos-freelancers-guide-to-getting-paid-in-dollars-without-losing-30-to-fees
+- https://humanglemedia.com/fake-alerts-dubious-stunts-the-digital-scams-draining-nigerias-pos-economy
+- https://www.modernghana.com/news/1509821/susu-collector-arraigned-for-allegedly-defrauding.html
+- https://www.legit.ng/people/1558842-turn-cash-lady-cries-ajo-contribution-leader-trance/
+- https://blocksec.com/blog/yieldblox-dao-incident-on-stellar-oracle-misconfiguration-enabled-a-10m-drain
+- https://uk.trustpilot.com/review/lobstr.co
+- https://www.theblock.co/amp/post/179237/ftx-api-keys-3commas-exploited
+- https://decrypt.co/224371/solana-telegram-trading-bot-shut-down-users-drained-523k
+- https://forum.safefoundation.org/t/revisiting-the-prize-distribution-process-of-hackathon-a-call-for-simplification-and-transparency/4721
+- https://decrypt.co/14672/keybase-ends-stellar-airdrop-thanks-hordes-crappy-fake-accounts
+- https://docs.drips.network/wave/withdrawing-rewards
+- https://docs.rhino.fi/interacting-with-stellar
+- https://help.vesseoapp.com/hc/en-us/articles/31454573016215
 
-Git commits are a required part of the development process. During the build, commit changes continuously instead of waiting until the entire project is finished.
+Source verification
+- https://github.com/stellar/stellar-core/blob/ba6a4e6e322a8069b85bdf48a35d971a2d72cc81/src/transactions/TransactionFrame.cpp
+- https://github.com/stellar/stellar-core/blob/ba6a4e6e322a8069b85bdf48a35d971a2d72cc81/src/transactions/CreateAccountOpFrame.cpp
+- https://www.npmjs.com/package/@stellar/stellar-base
+- https://github.com/stellar/passkey-kit/blob/74210a433abc2943f33f4747aa6d33be98bfa539/src/sac.ts
+- https://github.com/stellar/passkey-kit/tree/74210a433abc2943f33f4747aa6d33be98bfa539
+- https://developer.mozilla.org/en-US/docs/Web/API/Web_Authentication_API/WebAuthn_extensions
+- https://mera.category.xyz/authenticator-support/
+- https://developer.apple.com/forums/thread/774112
+- https://lilting.ch/en/articles/passkeys-prf-extension-encryption-risk
 
-### 23.1 Commit frequency
-
-For a normal build, aim for 50+ meaningful commits across the development process.
-
-Do NOT create 50 meaningless commits just to reach the number. Every commit should represent a real, completed development step.
-
-Make a commit whenever you complete a logical unit of work, such as:
-
-- Creating a new page
-- Creating or modifying a component
-- Adding a feature
-- Implementing an API endpoint
-- Adding database functionality
-- Adding authentication logic
-- Adding validation
-- Adding error handling
-- Connecting frontend to backend
-- Adding a utility/helper
-- Adding a configuration
-- Refactoring a specific section
-- Fixing a bug
-- Improving an existing feature
-- Adding tests
-- Fixing failing tests
-- Improving responsiveness
-- Fixing accessibility issues
-- Updating documentation
-- Completing a route
-- Completing a major UI section
-- Integrating an external service
-
-### 23.2 Commit process
-
-After completing each logical development unit:
-
-1. Check the current changes.
-2. Verify that the changes work.
-3. Stage only the relevant files.
-4. Create a descriptive commit.
-5. Continue building from the committed state.
-
-Use conventional commit messages where appropriate:
-
-- `feat: add dashboard`
-- `feat: add wallet connection`
-- `feat: implement transaction history`
-- `fix: resolve wallet connection error`
-- `refactor: simplify auth middleware`
-- `test: add dashboard tests`
-- `style: improve mobile layout`
-- `docs: update setup instructions`
-
-### 23.3 Important rules
-
-- Do NOT wait until the end of the project to commit everything.
-- Do NOT make one giant commit containing the entire project.
-- Do NOT create fake changes solely to increase the commit count.
-- Do NOT repeatedly modify and commit the same thing without a meaningful reason.
-- Keep commits small, focused, and logically separated.
-- Before moving to the next major feature, make sure the previous feature has been committed.
-- If a task contains several independent steps, commit each completed step separately.
-- If you encounter and fix a bug during development, commit the fix separately.
-- If you make a meaningful refactor, commit it separately.
-
-### 23.4 Target
-
-For a substantial project, aim for 50+ meaningful commits by the time the build is complete, distributed naturally throughout development.
-
-The commit history should clearly show the progression of the project from initial setup → individual features → integrations → fixes → testing → polish → final state.
-
-At the end of the build, run `git log` and verify that the history accurately reflects the development process.
-
----
-
-## 24. Definition of done
-
-On mainnet, from the public URL:
-
-- A sender pays a list of people with one signature and never sees a failed batch.
-- A recipient on a phone who has never heard of Mora opens a link, signs once, and has the money and the asset in their own wallet.
-- A payment nobody claims goes back to its sender.
-- A different contract sends through Mora, and its payment shows up in the same inbox.
-- Every number on the landing page and in the README links to a transaction.
-
----
-
-## Appendix A: references
-
-- Hackathon: https://demo.stellarpassport.xyz/hackathons/find-your-way-meridian-hackathon
-- Event listing with prizes and dates: https://stellarpassport.xyz/
-- Lokt-In #43: https://github.com/Lokt-In/loktin/issues/43
-- SorobanKit #12: https://github.com/SorobanKit/sorobanKit/issues/12
-- Surge #1: https://github.com/Surge-Org/Surge/issues/1
-- wallet-backend #731 (SAC `trust` emits no event): https://github.com/stellar/wallet-backend/issues/731
-- CAP-73 interface simplification: https://github.com/stellar/stellar-protocol/pull/1860
-- SAC docs (trust function, error codes): https://developers.stellar.org/docs/tokens/stellar-asset-contract
-- Protocol 26 Yardstick guide: https://stellar.org/blog/foundation-news/stellar-yardstick-protocol-26-upgrade-guide
-- Soroban transactions can't carry memos: https://developers.stellar.org/docs/learn/fundamentals/contract-development/contract-interactions/stellar-transaction
-- Tessera (storage-life and RPC retention measurements): https://github.com/ThaisFReis/tessera
-- Authline (SCF): https://communityfund.stellar.org/project/authline-stellar-asset-onboarding-yh4
-- Stellar Wallets Kit: https://github.com/Creit-Tech/Stellar-Wallets-Kit
-
-## Appendix B: measuring E5
-
-Hubble public BigQuery dataset. Confirm table and column names against the current schema first.
-
-```sql
-WITH active AS (
-  SELECT DISTINCT source_account AS account_id
-  FROM `crypto-stellar.crypto_stellar.history_transactions`
-  WHERE closed_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)),
-usdc AS (
-  SELECT account_id FROM `crypto-stellar.crypto_stellar.trust_lines_current`
-  WHERE asset_code = 'USDC'
-    AND asset_issuer = 'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN')
-SELECT COUNTIF(u.account_id IS NULL) AS cannot_receive,
-       COUNT(*) AS active_accounts,
-       COUNTIF(u.account_id IS NULL) / COUNT(*) AS share
-FROM active a LEFT JOIN usdc u USING (account_id);
-```
+Prior art
+- https://www.category.xyz/blogs/mera-crypto-onboarding-with-only-a-passkey-on-any-network
+- https://docs.trustlesswork.com/trustless-work/getting-started/about-trustless-work
+- https://developers.stellar.org/docs/build/guides/cli/tx-new-create-claimable-balance
+- https://forum.celo.org/t/project-complete-esusu-almond-2025-grant-completion-report/12939
+- https://ethglobal.com/showcase/esusu-5wa6a
+- https://www.karmahq.xyz/project/celosave/about
+- https://www.karmahq.xyz/project/ajo-1/about
+- https://docs.passport.human.tech/building-with-passport/stamps/smart-contracts/integrating-onchain-stamp-data
+- https://blockaid.io/blog/73-quarantined-how-blockaid-and-stellar-validators-contained-a-10m-price-manipulation-attack
+- https://communityfund.stellar.org/submissions/reckfq6k2nbFdORy0
+- https://communityfund.stellar.org/submissions/recFXRB2XM6kLXBFU
+- https://stellar.org/blog/ecosystem/cowries-cross-border-payment-services-for-nigeria-powered-by-stellar

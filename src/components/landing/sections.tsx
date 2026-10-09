@@ -48,7 +48,7 @@ export function PainsBento() {
 export function Audiences() {
   return (
     <>
-      <SectionHeader title="Who it's for" subtitle="People who pay others on Stellar, the people they pay, and the apps in between." />
+      <SectionHeader title="Who it's for" subtitle="Anyone holding USDC in a Stellar smart wallet who wants it on an exchange." />
       <div className="grid gap-4 md:grid-cols-3">
         {site.audiences.map((x) => (
           <Card key={x.title} {...x} />
@@ -58,7 +58,7 @@ export function Audiences() {
   );
 }
 
-/** Single checklist card (frontend.md §6.6), here the contract's guarantees (PRD §11.6). */
+/** Single checklist card (frontend.md §6.6), here what the sponsor service can and can't do (PRD §13). */
 export function Guarantees() {
   const g = site.guarantees;
   return (
@@ -87,12 +87,13 @@ export function Guarantees() {
 }
 
 /** Fewer than ten items, so one static row of round pills, not a marquee (frontend.md §6.8). */
-export function WalletsRow() {
+export function BuiltOnRow() {
+  const b = site.builtOn;
   return (
     <>
-      <SectionHeader title={site.wallets.title} subtitle="Recipients use the wallet they already have. Phone wallets connect through WalletConnect." />
+      <SectionHeader title={b.title} subtitle={b.subtitle} />
       <ul className="mx-auto flex max-w-3xl flex-wrap justify-center gap-3">
-        {site.wallets.list.map((w) => (
+        {b.list.map((w) => (
           <li key={w.name}>
             <a
               href={w.href}

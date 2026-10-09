@@ -1,55 +1,37 @@
 "use client";
 
-import { shortAddress } from "mora-sdk/format";
-import type { NetworkId } from "mora-sdk/network";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { NETWORK_LABEL, NETWORKS } from "@/lib/networks";
+import { NETWORK } from "@/lib/config";
+import { short } from "@/lib/format";
 import { Icons } from "./icons";
-import { useNetwork, useWallet } from "./providers";
+import { useSession } from "./providers";
 
 const NAV = [
-  { href: "/send", label: "Send" },
-  { href: "/inbox", label: "Inbox" },
-  { href: "/activity", label: "Activity" },
-  { href: "/integrate", label: "Integrate" },
+  { href: "/exit", label: "Exit" },
   { href: "/try", label: "Try it" },
+  { href: "/exchange", label: "Exchange simulator" },
+  { href: "/recover", label: "Recover" },
+  { href: "/how", label: "How it works" },
 ];
 
-/**
- * Mainnet carries a persistent beta strip (PRD §6). It reuses the
- * announcement-strip slot from frontend.md §6.0, offsets included.
- */
+/** No banner slot on Portaj: testnet is labelled in the header itself. */
 export function Chrome() {
-  const { id } = useNetwork();
-  const banner = id === "mainnet";
-  useEffect(() => {
-    document.documentElement.style.setProperty("--banner-h", banner ? "2.25rem" : "0px");
-  }, [banner]);
-  return (
-    <>
-      {banner ? (
-        <div className="fixed inset-x-0 top-0 z-[60] flex h-9 items-center justify-center border-b border-border bg-secondary px-4 text-center text-xs text-muted-foreground">
-          Beta. The contract is unaudited. Payments are capped.
-        </div>
-      ) : null}
-      <Header top={banner ? "top-9" : "top-0"} />
-    </>
-  );
+  return <Header />;
 }
 
-function Header({ top }: { top: string }) {
+function Header() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   useEffect(() => setOpen(false), [pathname]);
 
   return (
-    <header className={`fixed left-0 right-0 ${top} z-50 ${open ? "bg-background" : "bg-background-semi-transparent backdrop-blur-md"}`}>
+    <header className={`fixed left-0 right-0 top-0 z-50 ${open ? "bg-background" : "bg-background-semi-transparent backdrop-blur-md"}`}>
       <div className="mx-auto flex max-w-[1400px] items-center justify-between px-4 py-3 xl:px-6 xl:py-4 2xl:px-8">
-        <Link href="/" className="-ml-1 flex h-11 items-center gap-2 px-1 text-foreground" aria-label="Mora home">
+        <Link href="/" className="-ml-1 flex h-11 items-center gap-2 px-1 text-foreground" aria-label="Portaj home">
           <Icons.Logo className="h-6 w-7" />
-          <span className="text-lg leading-none xl:hidden">mora</span>
+          <span className="text-lg leading-none xl:hidden">portaj</span>
         </Link>
 
         <nav className="hidden items-center gap-7 xl:flex" aria-label="Main">
@@ -63,8 +45,8 @@ function Header({ top }: { top: string }) {
             </Link>
           ))}
           <div className="flex items-center gap-5 border-l border-border pl-6">
-            <NetworkSwitch />
-            <ConnectButton />
+            <NetworkLabel />
+            <AccountButton />
           </div>
         </nav>
 
@@ -82,7 +64,7 @@ function Header({ top }: { top: string }) {
       </div>
 
       {open ? (
-        <div className="fixed inset-x-0 bottom-0 top-[calc(var(--banner-h,0px)+4.25rem)] z-50 overflow-y-auto bg-background px-4 pb-10 xl:hidden">
+        <div className="fixed inset-x-0 bottom-0 top-[4.25rem] z-50 overflow-y-auto bg-background px-4 pb-10 xl:hidden">
           <nav className="flex flex-col border-t border-border" aria-label="Mobile">
             {NAV.map((n) => (
               <Link key={n.href} href={n.href} className="flex h-14 items-center border-b border-border text-lg text-foreground">
@@ -91,8 +73,8 @@ function Header({ top }: { top: string }) {
             ))}
           </nav>
           <div className="mt-8 space-y-6">
-            <NetworkSwitch />
-            <ConnectButton block />
+            <NetworkLabel />
+            <AccountButton block />
           </div>
         </div>
       ) : null}
@@ -100,45 +82,22 @@ function Header({ top }: { top: string }) {
   );
 }
 
-export function NetworkSwitch() {
-  const { id, setNetwork } = useNetwork();
-  const ids: NetworkId[] = (["mainnet", "testnet"] as NetworkId[]).filter((n) => !!NETWORKS[n]);
-  // One network deployed (testnet for the hackathon): a label, not a switch.
-  if (ids.length < 2) {
-    return (
-      <span className="inline-flex h-7 items-center gap-1.5 border border-border px-2.5 text-xs text-muted-foreground">
-        <span className="inline-block h-1.5 w-1.5 rounded-full bg-waiting" aria-hidden />
-        {NETWORK_LABEL[id]}
-      </span>
-    );
-  }
+/** Testnet only (PRD §2): a label, not a switch. */
+export function NetworkLabel() {
   return (
-    <div className="inline-flex border border-border text-xs" role="radiogroup" aria-label="Network">
-      {ids.map((n) => {
-        const available = !!NETWORKS[n];
-        const active = id === n;
-        return (
-          <button
-            key={n}
-            type="button"
-            role="radio"
-            aria-checked={active}
-            disabled={!available}
-            title={available ? undefined : "Mainnet deployment pending"}
-            onClick={() => setNetwork(n)}
-            className={`h-7 px-2.5 transition-colors ${active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"} disabled:cursor-not-allowed disabled:opacity-50`}
-          >
-            {NETWORK_LABEL[n]}
-          </button>
-        );
-      })}
-    </div>
+    <span className="inline-flex h-7 items-center gap-1.5 border border-border px-2.5 text-xs text-muted-foreground">
+      <span className="inline-block h-1.5 w-1.5 rounded-full bg-waiting" aria-hidden />
+      {NETWORK.label}
+    </span>
   );
 }
 
-export function ConnectButton({ block = false }: { block?: boolean }) {
-  const { address, connect, disconnect, connecting } = useWallet();
+/** The passkey wallet this browser uses. Signing in is a passkey prompt; no extension. */
+export function AccountButton({ block = false }: { block?: boolean }) {
+  const { wallet, setWallet, exit, signOut } = useSession();
   const [menu, setMenu] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -150,20 +109,41 @@ export function ConnectButton({ block = false }: { block?: boolean }) {
     return () => window.removeEventListener("mousedown", close);
   }, [menu]);
 
-  if (!address) {
+  async function signIn() {
+    setBusy(true);
+    setError(null);
+    try {
+      const { connectWallet } = await import("@/lib/wallet");
+      setWallet(await connectWallet());
+    } catch (e) {
+      const { passkeyError } = await import("@/lib/format");
+      setError(passkeyError(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!wallet) {
     return (
-      <button
-        type="button"
-        onClick={() => void connect()}
-        disabled={connecting}
-        className={
-          block
-            ? "h-11 w-full bg-primary px-6 text-sm text-primary-foreground"
-            : "text-sm text-foreground underline-offset-4 hover:underline disabled:opacity-50"
-        }
-      >
-        {connecting ? "Connecting…" : "Connect wallet"}
-      </button>
+      <div className={block ? "space-y-2" : "relative"}>
+        <button
+          type="button"
+          onClick={() => void signIn()}
+          disabled={busy}
+          className={
+            block
+              ? "h-11 w-full bg-primary px-6 text-sm text-primary-foreground"
+              : "text-sm text-foreground underline-offset-4 hover:underline disabled:opacity-50"
+          }
+        >
+          {busy ? "Waiting for passkey…" : "Sign in with passkey"}
+        </button>
+        {error ? (
+          <p role="alert" className={`text-xs text-destructive ${block ? "" : "absolute right-0 top-full mt-2 w-64 border border-border bg-background p-2 text-left"}`}>
+            {error}
+          </p>
+        ) : null}
+      </div>
     );
   }
 
@@ -175,40 +155,37 @@ export function ConnectButton({ block = false }: { block?: boolean }) {
         aria-expanded={menu}
         className={`font-mono tabular text-sm text-foreground ${block ? "h-11 w-full border border-border" : ""}`}
       >
-        {shortAddress(address)}
+        {short(wallet.contractId)}
       </button>
       {menu ? (
-        <div className="absolute right-0 top-full z-50 mt-3 w-56 animate-dropdown-fade border border-border bg-background shadow-lg">
-          <p className="break-all border-b border-border px-3 py-2 font-mono text-xs text-muted-foreground">{address}</p>
+        <div className="absolute right-0 top-full z-50 mt-3 w-64 animate-dropdown-fade border border-border bg-background shadow-lg">
+          <p className="border-b border-border px-3 pt-2 text-xs text-muted-foreground">Smart wallet</p>
+          <p className="break-all border-b border-border px-3 pb-2 font-mono text-xs text-foreground">{wallet.contractId}</p>
+          {exit ? (
+            <>
+              <p className="px-3 pt-2 text-xs text-muted-foreground">Exit account</p>
+              <p className="break-all border-b border-border px-3 pb-2 font-mono text-xs text-foreground">{exit.publicKey}</p>
+            </>
+          ) : null}
           <button
             type="button"
             className="block w-full px-3 py-2 text-left text-sm text-foreground hover:bg-accent"
             onClick={() => {
-              void navigator.clipboard?.writeText(address);
+              void navigator.clipboard?.writeText(wallet.contractId);
               setMenu(false);
             }}
           >
-            Copy address
-          </button>
-          <button
-            type="button"
-            className="block w-full px-3 py-2 text-left text-sm text-foreground hover:bg-accent"
-            onClick={() => {
-              void connect();
-              setMenu(false);
-            }}
-          >
-            Switch wallet
+            Copy wallet address
           </button>
           <button
             type="button"
             className="block w-full border-t border-border px-3 py-2 text-left text-sm text-foreground hover:bg-accent"
             onClick={() => {
-              void disconnect();
+              signOut();
               setMenu(false);
             }}
           >
-            Disconnect
+            Sign out
           </button>
         </div>
       ) : null}
