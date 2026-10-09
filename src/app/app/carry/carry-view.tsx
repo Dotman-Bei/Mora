@@ -420,7 +420,7 @@ export function CarryView() {
               error={dest && !dest.ok ? dest.error : null}
               hint={
                 IS_TESTNET && to.trim() !== SIMULATOR_DEPOSIT ? (
-                  <button type="button" onClick={fillSimulator} className="text-left underline-offset-4 hover:text-foreground hover:underline">
+                  <button type="button" onClick={fillSimulator} className="inline-flex min-h-10 items-center text-left underline-offset-4 hover:text-foreground hover:underline sm:min-h-0">
                     No exchange on testnet? Use the exchange simulator&apos;s address and memo
                   </button>
                 ) : null
