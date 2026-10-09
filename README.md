@@ -2,7 +2,7 @@
 
 Portaj lets a passkey smart-wallet user send USDC to any exchange deposit address with its memo, through their own passkey-derived Stellar account created with sponsored reserves, so they need no XLM and no seed phrase.
 
-**Live (testnet):** https://mora-chi.vercel.app · **Track:** General · Find Your Way hackathon (Stellar Passport)
+**Live (testnet):** https://portaj.vercel.app · **App:** https://portaj.vercel.app/app · **Track:** General · Find Your Way hackathon (Stellar Passport)
 
 ## The claim
 
@@ -12,13 +12,24 @@ A transfer out of a smart wallet (a C-address) is a contract call, and the netwo
 
 ### Verify it yourself
 
-1. Open [/try](https://mora-chi.vercel.app/try): create a test passkey wallet, get test USDC, press **Send with the memo**. The network answers `Transaction contains a memo. Soroban transactions do not support memos.` (simulation) and `txMalformed` (-16) (submission).
-2. Press **Exit to the simulator**. One passkey prompt later you get three explorer links.
-3. On stellar.expert your exit account shows 0 XLM, with account and trustline reserves sponsored by `GAD3TLO2X27OQROVNDWKBMKZF5XFBMKZMN6GJMX6UAVR2FXSBWO4THCA`.
-4. The payment out carries the memo, goes to the deposit address, and its fee is paid by a fee bump.
-5. [/exchange](https://mora-chi.vercel.app/exchange) credits it under your memo. The memo-less contract transfer from step 1 is listed as not credited.
+1. Open **[Wallet](https://portaj.vercel.app/app)**: press **Create test wallet**, then **Get test USDC**.
+2. Open **[Carry](https://portaj.vercel.app/app/carry)** and press **Try the normal way** (right column). The network answers `Transaction contains a memo. Soroban transactions do not support memos.` (simulation) and `txMalformed` (-16) (submission). Nothing moves.
+3. In the left column, choose **Use the exchange simulator's address and memo**, enter an amount and press **Continue with passkey**. The first time, press **Set up (paid by Portaj)**; then **Send**. You get a receipt with three explorer links.
+4. On stellar.expert your transit account shows 0 XLM, with account and trustline reserves sponsored by `GAD3TLO2X27OQROVNDWKBMKZF5XFBMKZMN6GJMX6UAVR2FXSBWO4THCA`. The payment out carries the memo, goes to the deposit address, and its fee is paid by a fee bump.
+5. **[Exchange](https://portaj.vercel.app/app/exchange)** credits it under your memo. A memo-less contract transfer (**Send without the memo**, under the rejection) is listed as not credited.
+
+**One carry, already on testnet** (first carry for a passkey, 5 USDC, memo ID `356409`):
+
+| Step | Transaction |
+|---|---|
+| Setup: transit account created with 0 XLM, USDC trustline, reserves sponsored | [`0f0b1e10…`](https://stellar.expert/explorer/testnet/tx/0f0b1e10d4540c08d83e5dd19f8f98e71517a8df74eda01199ea40ae03961413) |
+| Transfer in: smart wallet (C) → transit account (G), passkey-signed | [`72fa4bcb…`](https://stellar.expert/explorer/testnet/tx/72fa4bcb6b8531b7fb723f21e8329798d55535c7fb2343fb374174ead69b2a80) |
+| Payment out: G → simulator deposit, memo ID `356409`, fee bump by the sponsor | [`47cf0d74…`](https://stellar.expert/explorer/testnet/tx/47cf0d749698ccc1c98d54b1f9c44ae64bbe55cdab8f513fcdf3dbe166ba1102) |
+| The transit account afterwards: 0 XLM, 0 USDC, sponsored | [`GD2VSQSN…`](https://stellar.expert/explorer/testnet/account/GD2VSQSNHIRGIMB5YM6P3AA7T26ANEN7OSMG4HCU6OR3WAUKVFJVY3YO) |
 
 ## How it works
+
+The app has four screens: **Wallet** (your passkey smart wallet, its USDC and C-address; on testnet, a test wallet and test USDC), **Carry** (address, memo, amount, one passkey prompt; on testnet, the normal way's rejection beside it), **Receipts** (every carry with its explorer links, the memo as sent and the 0 XLM proof; unfinished carries are resumed or returned here) and **Exchange** (the labelled testnet simulator, hidden on mainnet). The G account is called the *transit account*: USDC sits in it for one ledger.
 
 ```
 1. User pastes exchange address + memo, signs in with a passkey on Portaj
@@ -29,9 +40,9 @@ A transfer out of a smart wallet (a C-address) is a contract call, and the netwo
 6. Receipt page: three explorer links; G native balance 0; reserves show the sponsor
 ```
 
-First exit: three transactions, two passkey prompts. Every later exit: two transactions, one prompt. USDC sits in G for about a ledger. Portaj never holds user keys or funds; the only server key is the sponsor's.
+First carry: three transactions, two passkey prompts. Every later carry: two transactions, one prompt. USDC sits in G for about a ledger. Portaj never holds user keys or funds; the only server key is the sponsor's.
 
-**Two modes.** *Wallet on Portaj*: a passkey-kit wallet created on Portaj; Portaj signs the C → G transfer. *Another wallet*: passkeys belong to the site that made them, so the user sends USDC to their exit account from their own wallet app, and Portaj pays it out with the memo.
+**Two modes.** *Wallet on Portaj*: a passkey-kit wallet created on Portaj; Portaj signs the C → G transfer. *Another wallet*: passkeys belong to the site that made them, so the user sends USDC to their transit account from their own wallet app, and Portaj pays it out with the memo.
 
 ### Transactions
 
@@ -62,7 +73,7 @@ Computed in the browser, never stored or sent. Same passkey → same G; testnet 
 | PRF unsupported | One-time key; recovery file first; keep the page open |
 | Sponsor low or rate-limited | Plain message, nothing moved |
 | tx1 or tx2 fails | Nothing moved; retry |
-| tx2 lands, tx3 fails | **Resume exit** or **Return to my wallet** (on the screen, or at /recover) |
+| tx2 lands, tx3 fails | **Resume carry** or **Return to my wallet** (on the screen, or under [Receipts](https://portaj.vercel.app/app/receipts#recover)) |
 | Exchange has no USDC trustline | Blocked before signing |
 | SEP-29 memo required, memo missing | Blocked before signing |
 | Look-alike USDC | Only Circle's issuer accepted |
