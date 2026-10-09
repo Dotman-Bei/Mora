@@ -1,5 +1,5 @@
 // Live check of the sponsor API with a plain keypair standing in for the
-// passkey-derived exit account. Run from the repo root.
+// passkey-derived transit account. Run from the repo root.
 import { readFileSync } from "node:fs";
 import { Account, Asset, Keypair, Memo, Networks, Operation, TransactionBuilder, Horizon, StrKey } from "@stellar/stellar-sdk";
 
@@ -17,7 +17,7 @@ const post = async (p, b) => {
 };
 
 const g = Keypair.random();
-console.log("exit account", g.publicKey());
+console.log("transit account", g.publicKey());
 
 // tx1
 const s = await post("/api/setup", { account: g.publicKey() });

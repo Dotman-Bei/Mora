@@ -51,9 +51,9 @@ export async function assertSponsorFunded() {
 
 /** A G this sponsor created (its base reserve is ours). */
 export async function assertSponsored(g: string) {
-  if (!StrKey.isValidEd25519PublicKey(g)) throw new Refusal("Not an exit account address.");
+  if (!StrKey.isValidEd25519PublicKey(g)) throw new Refusal("Not a transit account address.");
   const a = await getAccount(g);
-  if (!a.exists || a.sponsor !== SPONSOR) throw new Refusal("That account isn't a Portaj exit account.", 403);
+  if (!a.exists || a.sponsor !== SPONSOR) throw new Refusal("That account isn't a Portaj transit account.", 403);
   return a;
 }
 
@@ -65,7 +65,7 @@ export async function buildSetup(g: string): Promise<{ xdr: string | null; creat
   if (!StrKey.isValidEd25519PublicKey(g)) throw new Refusal("Not a valid G address.");
   const a = await getAccount(g);
   if (a.exists && a.usdc) return { xdr: null, created: false };
-  if (a.exists && a.sponsor !== SPONSOR) throw new Refusal("That account already exists and isn't a Portaj exit account.", 403);
+  if (a.exists && a.sponsor !== SPONSOR) throw new Refusal("That account already exists and isn't a Portaj transit account.", 403);
   await assertSponsorFunded();
 
   const sponsor = sponsorKeypair();
@@ -171,13 +171,13 @@ export async function feeBump(envelope: string): Promise<{ hash: string; kind: "
   const inner = parse(envelope);
   if (inner instanceof FeeBumpTransaction) throw new Refusal("Send the inner transaction.");
   await assertSponsored(inner.source);
-  if (inner.operations.length !== 1) throw new Refusal("One operation per exit transaction.");
+  if (inner.operations.length !== 1) throw new Refusal("One operation per transit transaction.");
   const op = inner.operations[0];
-  if (op.source && op.source !== inner.source) throw new Refusal("The operation must come from the exit account.");
+  if (op.source && op.source !== inner.source) throw new Refusal("The operation must come from the transit account.");
 
   let kind: "payment" | "return";
   if (op.type === "payment") {
-    if (!op.asset.equals(usdc())) throw new Refusal("Only Circle USDC leaves an exit account.");
+    if (!op.asset.equals(usdc())) throw new Refusal("Only Circle USDC leaves a transit account.");
     kind = "payment";
   } else if (op.type === "invokeHostFunction") {
     const fn = op.func;
@@ -189,7 +189,7 @@ export async function feeBump(envelope: string): Promise<{ hash: string; kind: "
     }
     kind = "return";
   } else {
-    throw new Refusal("That operation isn't part of an exit.");
+    throw new Refusal("That operation isn't part of a carry.");
   }
   if (BigInt(inner.fee) > 20_000_000n) throw new Refusal("That transaction would cost the sponsor too much.");
 
@@ -298,7 +298,7 @@ export async function send(tx: Transaction | FeeBumpTransaction): Promise<string
 const OP_TEXT: Record<string, string> = {
   paymentNoTrust: "The exchange address has no USDC trustline, so it can't receive USDC.",
   paymentNoDestination: "The exchange address doesn't exist on this network.",
-  paymentUnderfunded: "The exit account doesn't hold enough USDC.",
+  paymentUnderfunded: "The transit account doesn't hold enough USDC.",
   paymentNotAuthorized: "The exchange address isn't authorized to hold USDC.",
   paymentLineFull: "The exchange's USDC trustline is full.",
   invokeHostFunctionTrapped: "The contract call failed.",
@@ -320,7 +320,7 @@ export function explain(result: xdr.TransactionResult | undefined): string {
       if (!/Success$/.test(opName)) return OP_TEXT[opName] ?? `The network refused it: ${opName}.`;
     }
   }
-  if (name === "txBadSeq") return "The exit account's sequence moved. Try again.";
+  if (name === "txBadSeq") return "The transit account's sequence moved. Try again.";
   if (name === "txTooLate") return "The transaction expired before it reached the network. Try again.";
   if (name === "txInsufficientFee") return "The network fee went up. Try again.";
   return `The network refused it: ${name}.`;

@@ -10,7 +10,7 @@ export async function POST(req: Request) {
     const { xdr, credentialId } = await body<{ xdr?: string; credentialId?: string }>(req);
     await limitIp(req, "submit", 10, 86_400);
     if (credentialId) {
-      await limitKey(`setup:cred:${String(credentialId).slice(0, 200)}`, 2, 86_400, "This passkey already had its exit account set up today.");
+      await limitKey(`setup:cred:${String(credentialId).slice(0, 200)}`, 2, 86_400, "This passkey already had its transit account set up today.");
     }
     return json(await submitSetup(String(xdr ?? "")));
   } catch (e) {

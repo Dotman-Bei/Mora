@@ -27,7 +27,7 @@ export async function unlock(credentialId?: string): Promise<Unlocked> {
 
 /** Mode B first run: a passkey on Portaj's domain that only derives the exit account. */
 export async function createPasskey(): Promise<Unlocked> {
-  return fromCapture(await prfCreate(`Portaj exit · ${new Date().toISOString().slice(0, 10)}`));
+  return fromCapture(await prfCreate(`Portaj · ${new Date().toISOString().slice(0, 10)}`));
 }
 
 /** §10.4: no PRF, so a random key held in memory for this session only. */
@@ -54,7 +54,7 @@ export async function payOut(kp: Keypair, dest: Destination, memo: MemoInput, st
 export async function returnAll(kp: Keypair, to: string): Promise<{ hash: string; stroops: bigint }> {
   const a = await getAccount(kp.publicKey());
   const stroops = a.usdc?.stroops ?? 0n;
-  if (stroops <= 0n) throw new Error("The exit account holds no USDC.");
+  if (stroops <= 0n) throw new Error("The transit account holds no USDC.");
   return { hash: (await api.feebump(await buildReturn(kp, a.sequence, to, stroops))).hash, stroops };
 }
 
@@ -80,8 +80,8 @@ export async function findIncoming(account: string): Promise<string | undefined>
 export function downloadRecoveryFile(kp: Keypair, details: Record<string, string>) {
   const body = JSON.stringify(
     {
-      portaj: "one-time exit account",
-      warning: "This file holds a secret key. Anyone with it can move what's in this account. Delete it once your exit is done.",
+      portaj: "one-time transit account",
+      warning: "This file holds a secret key. Anyone with it can move what's in this account. Delete it once your carry is done.",
       network: NETWORK.id,
       account: kp.publicKey(),
       secret: kp.secret(),
