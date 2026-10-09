@@ -1,141 +1,103 @@
-# Mora
+# Portaj
 
-**Payments that wait.** Send money to anyone on Stellar. If they can't receive it yet, it waits for them, and it comes back to you if they never take it.
+Portaj lets a passkey smart-wallet user send USDC to any exchange deposit address with its memo, through their own passkey-derived Stellar account created with sponsored reserves, so they need no XLM and no seed phrase.
 
-*Mora* is Latin for "delay". *Mora creditoris* is the delay when the person being paid isn't ready to take the money.
+**Live (testnet):** https://mora-chi.vercel.app · **Track:** General · Find Your Way hackathon (Stellar Passport)
 
-**Live:** https://mora-chi.vercel.app (testnet; start with [/try](https://mora-chi.vercel.app/try))
+## The claim
 
-## The problem
+> With Portaj, a smart-wallet user's USDC cannot be stranded for lack of a memo, a trustline or XLM.
 
-On Stellar an account has to add an asset (a trustline) before it can hold it. When a payout contract or smart wallet sends USDC to someone who hasn't, the transfer fails, and if it was one line of a payout run, the whole run fails with it. Classic claimable balances solved this in 2020, but contracts and smart wallets can't create them.
+A transfer out of a smart wallet (a C-address) is a contract call, and the network rejects any memo on it (stellar-core [`validateSorobanMemo`](https://github.com/stellar/stellar-core/blob/ba6a4e6e322a8069b85bdf48a35d971a2d72cc81/src/transactions/TransactionFrame.cpp)). Exchanges need the memo, and per [SDF's smart-wallet docs](https://developers.stellar.org/docs/build/apps/smart-wallets) "transfers from contracts are not supported by exchanges today". A classic wallet would fix that, but it needs XLM for its reserve and trustline before it can hold USDC.
 
-## What Mora does
+### Verify it yourself
 
-Every payment sent through Mora ends in exactly one of three places:
+1. Open [/try](https://mora-chi.vercel.app/try): create a test passkey wallet, get test USDC, press **Send with the memo**. The network answers `Transaction contains a memo. Soroban transactions do not support memos.` (simulation) and `txMalformed` (-16) (submission).
+2. Press **Exit to the simulator**. One passkey prompt later you get three explorer links.
+3. On stellar.expert your exit account shows 0 XLM, with account and trustline reserves sponsored by `GAD3TLO2X27OQROVNDWKBMKZF5XFBMKZMN6GJMX6UAVR2FXSBWO4THCA`.
+4. The payment out carries the memo, goes to the deposit address, and its fee is paid by a fee bump.
+5. [/exchange](https://mora-chi.vercel.app/exchange) credits it under your memo. The memo-less contract transfer from step 1 is listed as not credited.
 
-| Outcome | When | What the recipient does |
-|---|---|---|
-| **Delivered** | They could receive it | Nothing. It's in their wallet. |
-| **Waiting** | They couldn't yet | Opens the link, signs once. Mora adds the asset (SAC `trust`, Protocol 26) and pays in the same transaction. |
-| **Returned** | Nobody claimed it by the return date | Nothing. It goes back to the sender. |
+## How it works
 
-One shared Soroban contract per network, with no admin, no upgrade path and no fee. Any wallet or payout app can send through it, and every recipient claims in the same Mora inbox.
+```
+1. User pastes exchange address + memo, signs in with a passkey on Portaj
+2. WebAuthn PRF ──► 32 bytes ──► ed25519 key ──► the user's own G address
+3. Sponsor tx: BeginSponsoring ─► CreateAccount(G, 0 XLM) ─► ChangeTrust(USDC) ─► EndSponsoring
+4. Smart wallet (C) ──SEP-41 transfer(C ─► G, amount)──► USDC lands in G
+5. G ──classic Payment(USDC) + memo──► exchange deposit address; sponsor fee-bumps the tx
+6. Receipt page: three explorer links; G native balance 0; reserves show the sponsor
+```
 
-## Status
+First exit: three transactions, two passkey prompts. Every later exit: two transactions, one prompt. USDC sits in G for about a ledger. Portaj never holds user keys or funds; the only server key is the sponsor's.
 
-Mora runs on **Stellar testnet**. The hackathon organizers asked for testnet-only builds, so mainnet is out of scope for now ([DECISIONS D-015](DECISIONS.md)).
+**Two modes.** *Wallet on Portaj*: a passkey-kit wallet created on Portaj; Portaj signs the C → G transfer. *Another wallet*: passkeys belong to the site that made them, so the user sends USDC to their exit account from their own wallet app, and Portaj pays it out with the memo.
 
-| | Testnet |
+### Transactions
+
+| | Source | Operations | Signed by |
+|---|---|---|---|
+| tx1 setup (first run) | Sponsor | `beginSponsoringFutureReserves(G)` · `createAccount(G, 0)` · `changeTrust(USDC)` from G · `endSponsoringFutureReserves` from G | Sponsor + G |
+| tx2 transfer in | Sponsor (relay) | `invokeHostFunction`: USDC SAC `transfer(C, G, amount)`, no memo | Passkey signs C's auth entry; sponsor signs the envelope |
+| tx3 payment out | G, fee bump by sponsor | `payment(USDC, amount)` to the exchange, memo ID or text | G (inner) + sponsor (fee bump) |
+| tx4 return | G, fee bump by sponsor | SAC `transfer(G, C, balance)`, or a USDC payment to a G wallet | G + sponsor |
+
+The sponsor service (`src/lib/server/sponsor.ts`) signs only these shapes: it relays a transfer only if it is a USDC transfer from a C-address into an account it sponsors, refuses any source-account authorization, and fee-bumps only single-operation transactions whose source is an account it sponsors. Rate limits per IP and per passkey credential; refuses below a 20 XLM floor.
+
+### Key derivation
+
+```
+salt = SHA-256("portaj:stellar:g-account:v1")          // prf.eval.first, on every ceremony
+seed = HKDF-SHA256(ikm = prf.results.first, salt = "portaj",
+                   info = "stellar-ed25519-seed:" + hex(SHA-256(networkPassphrase)), 32)
+G    = Keypair.fromRawEd25519Seed(seed)
+```
+
+Computed in the browser, never stored or sent. Same passkey → same G; testnet and mainnet differ. If the authenticator has no PRF, Portaj uses a one-time key held in the tab and makes the user save a recovery file before anything moves.
+
+### Recovery
+
+| Failure | Handling |
 |---|---|
-| Mora contract | [`CAHCJV5S…ZZ3SF`](https://stellar.expert/explorer/testnet/contract/CAHCJV5S5LJIL53YPNS4YTO2QWK65RYJG56SMSMYIPU45RVHV4YZZ3SF) |
-| Parameters | `grace_ledgers` 120,960 · `max_items` 30 (measured on chain) |
-| Assets | XLM, TESTUSD (a test asset with no value) |
-| Demo-only `baseline-payout` | [`CDS2BXVY…5HISB`](https://stellar.expert/explorer/testnet/contract/CDS2BXVY2D7GA25SVKP4FPSADST5AI6DUODJUG3UPZ4P7MFW7KR5HISB) |
-| Example partner contract | [`CA6HYBTE…H5EO3`](https://stellar.expert/explorer/testnet/contract/CA6HYBTE232ZHCA5GUNHFIXXDY6SD2HP6OCOD4SNBNYPCNWP4RCH5EO3) |
+| PRF unsupported | One-time key; recovery file first; keep the page open |
+| Sponsor low or rate-limited | Plain message, nothing moved |
+| tx1 or tx2 fails | Nothing moved; retry |
+| tx2 lands, tx3 fails | **Resume exit** or **Return to my wallet** (on the screen, or at /recover) |
+| Exchange has no USDC trustline | Blocked before signing |
+| SEP-29 memo required, memo missing | Blocked before signing |
+| Look-alike USDC | Only Circle's issuer accepted |
+| Different device, different PRF | Derived account doesn't exist; use the original device |
 
-Evidence: [docs/M0-feasibility.md](docs/M0-feasibility.md) (F1–F4, F6 verified on chain) and [docs/M2-testnet-e2e.md](docs/M2-testnet-e2e.md) (browser-driven runs on the public URL: delivered, waiting, claimed with trustline, returned; index live).
+## Testnet addresses
 
-Mainnet is prepared but not deployed: [deployments/mainnet.json](deployments/mainnet.json) lists Circle USDC/EURC with each SAC verified on chain, and [scripts/deploy-mainnet.sh](scripts/deploy-mainnet.sh) deploys the testnet-verified wasm. It goes live after an audit (PRD §17.1).
-
-## Try it
-
-- **`/try`**: no wallet needed. Demo keys in the tab, real testnet transactions: the same payout fails without Mora (0 of 3 paid), then succeeds with it (1 delivered, 2 waiting), a recipient claims, and the last payment returns after 5 minutes.
-- **`/send`**: pay one person or paste a list. Each row is checked before you sign (Ready, Will wait: no USDC trustline, Blocked: needs a memo…).
-- **`/claim?network=&from=&to=&asset=`**: the link senders share. It reads the contract directly, so it works even if every Mora server is down.
-- **`/inbox`**, **`/activity`**, **`/integrate`**.
-
-## How it's built
-
-```
-Browser (Next.js 16)
- ├─ Stellar Wallets Kit ── signs ───────────► Stellar RPC ──► Mora contract ──► SACs
- ├─ mora-sdk: build, simulate, read ────────► Stellar RPC (pooled, with fallback)
- └─ /api/v1/* (stateless functions)
-      ├─ ingest, sync, daily cron ─────────► Stellar RPC events
-      ├─ parcels, stats ◄──────────────────── Postgres index (Supabase)
-      └─ faucet (testnet key only) ────────► Mora contract (testnet)
-```
-
-| Path | What |
+| | |
 |---|---|
-| [contracts/mora](contracts/mora) | The contract (Rust, soroban-sdk 28). 35 tests against real classic accounts and trustlines. |
-| [contracts/baseline-payout](contracts/baseline-payout) | "Without Mora": plain transfers, demo only. |
-| [contracts/partner-example](contracts/partner-example) | The one-line integration, tested against the deployed wasm. |
-| [packages/mora-sdk](packages/mora-sdk) | TypeScript SDK the app is built on: readiness, builders, parsing, links, probes. |
-| [src/app](src/app) | Pages and API routes. |
-| [supabase/migrations](supabase/migrations) | Index schema. |
-| [deployments](deployments) | Contract IDs and parameters per network. Nothing is hard-coded elsewhere. |
-| [DECISIONS.md](DECISIONS.md) | Where the network or SDK disagreed with the PRD, and what was done. |
+| Sponsor | `GAD3TLO2X27OQROVNDWKBMKZF5XFBMKZMN6GJMX6UAVR2FXSBWO4THCA` |
+| Exchange simulator deposit (`config.memo_required = 1`) | `GCMGLKBKAKL7G6XTSWPQN56MMR4KCSTMNBSSUK3IRAKSJWUA6JV4AYE4` |
+| USDC issuer (Circle) | `GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5` |
+| USDC SAC | `CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA` |
+| passkey-kit wallet WASM | `97ce047884106b1c6c3bb40b8973cc48db1c4dad95c9e20462bf2c701daa764e` |
 
-### Contract
+## Limits
 
-```rust
-fn send(from, token, to, amount, refund_after) -> Outcome          // Delivered | Parked(code)
-fn send_many(from, token, payees, refund_after) -> Vec<Outcome>    // one pull, max_items payees
-fn claim(from, to, token) -> ClaimResult                           // trust() on error 13, then retry
-fn claim_many(to, items) -> Vec<ClaimResult>
-fn deliver(from, to, token) -> DoorResult                          // anyone, once they're ready
-fn refund(from, to, token) -> DoorResult                           // anyone, after refund_after
-fn parcel(from, to, token) -> Option<Parcel>
-```
+- **Testnet only.** No real exchange runs on testnet; the simulator credits only classic USDC payments with a memo. Real exchanges behave this way per SDF documentation.
+- **PRF support.** Works: iCloud Keychain (Safari 18 / iOS 18+, macOS 15+), Google Password Manager (Chrome 132+), Windows Hello (Windows 11 25H2+), 1Password, YubiKey 5, Proton Pass. Doesn't: Chrome local profile, Bitwarden, Dashlane.
+- **Safari cross-device** (QR) can return a different PRF value than on-device. Use the device you started on.
+- The PRF-derived key signs for a transit account holding funds for one ledger; it is not used to encrypt data ([the usual warning](https://lilting.ch/en/articles/passkeys-prf-extension-encryption-risk) is about that).
 
-Only recipient-side SAC errors make a payment wait: 6, 10, 11, 13 and 14 (14 added after reading the host source; see D-001). Anything else aborts, so unknown failures are never hidden as "waiting". Guarantees, all tested: solvency per token, three exits only (to `to` or back to `from`, both from the storage key), no early return, isolation inside a batch, no privileged role.
-
-## Run it locally
-
-Needs Node 22, pnpm 10, and for contracts Rust (`wasm32v1-none` target) plus stellar-cli 28.
+## Run it
 
 ```bash
 pnpm install
-cp .env.example .env.local     # fill in what you have; everything is optional for testnet browsing
-pnpm dev                       # http://localhost:3000
+pnpm setup:testnet        # sponsor + USDC stash + simulator; writes src/lib/testnet.json and .env.local
+pnpm dev                  # http://localhost:3000
 
-pnpm test                      # app + sdk unit tests
-MORA_LIVE=1 pnpm --filter mora-sdk test   # live read checks (testnet, plus mainnet asset config)
-
-cd contracts && cargo test && stellar contract build
+pnpm test                 # unit tests (amounts, addresses, memos, key derivation)
+node e2e/live.mjs         # full flow in Chrome with a virtual PRF passkey, real testnet
+node e2e/api.mjs          # sponsor API checks
+node e2e/responsive.mjs http://localhost:3000
 ```
 
-### Environment
+Deploy: set `SPONSOR_SECRET` (and optionally `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, then run `supabase/migrations/0001_rate.sql`). See `.env.example`.
 
-| Variable | Needed for |
-|---|---|
-| `NEXT_PUBLIC_TESTNET_RPC_URLS`, `NEXT_PUBLIC_MAINNET_RPC_URLS` | RPC providers, comma-separated, primary first |
-| `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | Phone wallets via WalletConnect |
-| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | The index (Inbox/Activity/landing numbers). Without it, they fall back to 7 days of RPC history plus this browser's sends |
-| `MORA_FAUCET_SECRET` | Testnet faucet. The only key on any server, and testnet only |
-| `CRON_SECRET` | Daily `/api/cron/sync` |
-
-### Deploy
-
-1. Create a Supabase project and run [supabase/migrations/0001_index.sql](supabase/migrations/0001_index.sql).
-2. Import the repo into Vercel and set the variables above. [vercel.json](vercel.json) schedules the daily sync.
-3. Mainnet (after an audit, not part of the hackathon build): fund a key you control, then `./scripts/deploy-mainnet.sh <key-name> <rpc-url>`. It refuses to deploy any wasm other than the one verified on testnet, and writes the contract ID to `deployments/mainnet.json`.
-
-## Running a pilot
-
-Send TESTUSD to real people from a **fresh** sender account (so the failed-transaction count is meaningful), then:
-
-```bash
-node scripts/pilot-report.mjs <sender G-address> --since 2026-10-07
-```
-
-It prints the PRD §16 numbers as a Markdown table, with denominators and transaction links: delivered, waited, claimed, returned, still waiting, median time to claim, and failed sender transactions (target 0). Label it "builder-run pilot".
-
-## What Mora doesn't protect
-
-- **The contract is unaudited**, which is why Mora is testnet-only. When it reaches mainnet after an audit, the app will cap payments at first (100 USDC, 100 EURC, 500 XLM per batch); contracts calling Mora directly are not capped.
-- **`trust` creates a trustline with no limit.**
-- **Assets that need issuer approval** wait until the issuer approves.
-- **A recipient needs an active account with a little free XLM to claim**, except for XLM payments large enough to activate the account (2 × base reserve).
-- **After the return date plus grace**, an unreturned payment's storage can be archived. Returning or claiming it then costs a small extra restore fee, which the app shows before signing.
-- **Memos:** Soroban transactions can't carry them. The app blocks addresses that require one (SEP-29); the contract can't, so partners must check.
-
-## Design
-
-The interface follows the monochrome editorial system in [frontend.md](frontend.md): Hedvig Letters Serif headlines over Hedvig Letters Sans, one weight, square corners and hairlines, no brand colour. The only colour is the product's own status marks. Light and dark themes, reduced motion respected, no trackers.
-
----
-
-Built for the Find Your Way hackathon (General Track) on Stellar. Product spec: [prd.md](prd.md).
+Stack: Next.js 16, React 19, Tailwind v4, `@stellar/stellar-sdk` 16.3.1, passkey-kit 0.19.1. No Portaj-written contract. Decisions where the build departs from the PRD: [DECISIONS.md](DECISIONS.md).

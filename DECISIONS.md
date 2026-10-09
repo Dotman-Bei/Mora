@@ -1,163 +1,90 @@
 # Decisions
 
-Where the network, the installed SDKs, or the two spec documents disagreed with
-the PRD, the network wins (PRD §22.2). Each entry says what was found, where,
-and what was done.
+Where the network, the installed libraries, or `frontend.md` disagreed with the
+PRD, the network wins. Each entry says what was found, where, and what was done.
 
-## D-001 · Error 14 is a recipient-side code
+## D-001 · stellar-sdk 16.3.1, not 17.2.1
 
-**Found:** `soroban-env-host 28.0.2`, `stellar_asset_contract/balance.rs`. An XLM
-transfer to an account that doesn't exist creates the account when the amount
-is at least `2 × base_reserve` (F3 holds). Below that, the SAC fails with
-`InsufficientAccountReserve = 14`, not `AccountMissingError = 6`.
+PRD §9 names `@stellar/stellar-sdk` 17.2.1. passkey-kit 0.19.1 (the current
+release, built for the v0.17.0+ smart wallet with WASM hash `97ce0478…a764e`)
+declares `@stellar/stellar-sdk ^16.3.0` as a peer and passes SDK 16 XDR objects
+across its API. Mixing majors gives two XDR registries. **Done:** the app uses
+16.3.1, one copy in the tree.
 
-**Impact:** with the PRD's set {6, 10, 11, 13}, a small XLM payment to an
-inactive account would abort the whole batch, breaking principle 1.
+## D-002 · The memo rejection shown is what RPC returns
 
-**Done:** 14 joins the recipient-side set. Such a payment waits like any other
-(PRD §11.3 updated in spirit). Test: `xlm_activates_new_account_when_large_enough`.
+PRD FR-7.2 quotes stellar-core's diagnostic, "Soroban transactions are not
+allowed to use memo or muxed source account". Over Stellar RPC on testnet
+(protocol 29) that string is not returned:
 
-## D-002 · Credit assets report a missing account as error 13
+- `simulateTransaction`: `Transaction contains a memo. Soroban transactions do not support memos.`
+- `sendTransaction`: status `ERROR`, result `txMalformed` (-16), fee charged 0,
+  no diagnostic events.
 
-**Found:** a USDC-style SAC transfer to a G-address with no account returns
-`TrustlineMissingError = 13`, not 6 (test `send_parks_when_account_missing`).
+**Done:** the before panel shows both real responses verbatim and cites
+`TransactionFrame::validateSorobanMemo` (stellar-core `ba6a4e6e`) as the rule
+behind them, with the core string quoted as the rule's log text. The naive
+attempt is built by the sponsor with the wallet's transfer and the memo; the
+memo check runs before authorization, so it needs no passkey signature and
+nothing can move.
 
-**Impact:** the contract's `Parked(code)` can't tell "no trustline" from "account
-not active" for credit assets.
+## D-003 · Test USDC comes from the testnet DEX, not faucet.circle.com
 
-**Done:** the readiness preview reads the account entry itself, and so does the
-claim page, so the "Will wait: account not active" chip still appears. On
-claim, `trust` on a missing account fails and the claim simulates as
-`Blocked`, so no signature is ever requested for it.
+FR-9.2 funds the stash from Circle's faucet, which is captcha-gated and can't be
+scripted. Testnet has a Circle USDC order book. **Done:** `scripts/setup-testnet.mjs`
+buys the stash with a strict-send path payment (3,600 XLM → 3,364 USDC on
+2026-10-09). Same issuer, same asset.
 
-## D-003 · Network is on Protocol 29
+## D-004 · One prompt per exit, two on the very first
 
-**Found:** testnet `getVersionInfo` reports protocol 29 (stellar-core 29.0.0).
-The PRD targets Protocol 26 or later. `soroban-sdk 28.0.0` and
-`stellar-cli 28.1.0` are the current releases and are used.
+§10.3 asks for one ceremony that signs tx2 and yields PRF. tx2's auth payload
+contains G, so G must be known before that ceremony. **Done:** every WebAuthn
+call on the page carries the PRF extension (a wrapper on
+`navigator.credentials`), and G's public key is remembered per passkey in the
+browser. First exit: one prompt derives G (needed to co-sign tx1), one signs
+tx2. Every later exit: one prompt; the PRF output from the tx2 signature is
+derived and checked against the remembered G before tx2 is relayed. On a
+mismatch nothing is sent. The e2e test asserts the single prompt.
 
-## D-004 · Claim keeps a created trustline when the retry is blocked
+## D-005 · No separate connect ceremony after creating or re-opening a wallet
 
-If `trust` succeeds but the retried transfer is still blocked (typically
-error 11, an asset that needs issuer approval), the claim returns `Blocked(11)`
-and the new trustline stays. That is the useful outcome: the issuer can now
-approve the trustline, and the next claim succeeds. The app simulates first
-and only asks for a signature when the simulation returns `Claimed`.
+`kit.connectWallet` always runs a proof ceremony. For a wallet this browser
+created and verified (`confirmWalletCreation`), Portaj points the kit at it
+directly; the next signature is checked by the wallet contract on chain. Sign-in
+from another browser still uses `connectWallet` with the public passkey indexer.
 
-## D-005 · `config()` read-only function
+## D-006 · Wallet deploys and tx2 go through Portaj's sponsor, not a relayer service
 
-Added `config() -> Config` so the deployment parameters (`grace_ledgers`,
-`max_items`) can be read from the chain rather than only from deployment
-files (PRD §11.1, §22.3).
-
-## D-006 · Constructor rejects `max_items = 0`
-
-New error `InvalidConfig = 7`. A zero `max_items` would deploy a contract on
-which `send_many` and `claim_many` can never succeed.
+passkey-kit's server path expects the OpenZeppelin Channels relayer. The
+`{func, auth}` shape works with any fee payer. **Done:** the sponsor builds the
+envelope around the passkey-signed host function, simulates, and submits. It
+accepts only a USDC SAC `transfer` from a C-address into an account it sponsors,
+or a `createContractV2` of the passkey-kit wallet WASM, and refuses any
+source-account authorization, so nothing can spend as the sponsor.
 
 ## D-007 · Frontend: frontend.md overrides the PRD's visual notes
 
-The owner asked that the frontend follow `frontend.md` without deviation. Two
-PRD lines conflict with it:
+Kept from the earlier build, by the owner's instruction to keep the present
+frontend. Amounts use `font-mono` (mapped to the sans face) with tabular
+figures; no brand accent; colour appears only in product UI (status dots).
 
-- PRD §8 "every amount is in monospace with tabular figures"; frontend.md §3
-  "no monospace exists, `font-mono` maps to the sans face". **Done:** amounts use
-  `font-mono` (mapped to Hedvig Letters Sans) with `tabular-nums`, so figures
-  still align without introducing a monospace face.
-- PRD §14 "one accent colour"; frontend.md §2 "there is no brand colour; the only
-  colour on the page is borrowed from the product UI". **Done:** no brand accent.
-  Colour appears only inside product UI: the Delivered / Waiting / Returned
-  status marks, the way Midday's product screens carry category colours.
+## D-008 · Logo
 
-## D-008 · `max_items` is set by the event-size cap, not CPU
+Same mark geometry as before (14×12 grid: rail, block, rail), now read as the
+portage: the water left, the load carried overland, the water reached. Colour
+version uses the Waiting colour (`#884c07` / `#f5b13d`) in the favicon, app icon
+and social card; the header keeps the one-colour mark. Wordmark: `portaj`.
 
-**Found:** simulation accepted `send_many` with 123 payees, but on-chain
-submissions failed from 44 with `resource_limit_exceeded`. Testnet caps contract
-events at `tx_max_contract_events_size_bytes = 16384` (return value included),
-and simulation does not enforce it. A delivered payee costs ~476 event bytes
-(the SAC's own `transfer` event plus Mora's `delivered`); a parked one ~276.
+## D-009 · Landing hero: the Halide design, as given (owner's choice)
 
-**Done:** Mora's event data is now a single value or a vec instead of a map
-(topics unchanged from §11.5). Measured on chain, worst case all delivered:
-30 succeeds, 32 fails. Testnet deploys with `max_items = 30`. The app chunks
-longer lists (P1) and never relies on simulation alone for batch size.
-Scripts: `scripts/measure-max-items.mjs`, `scripts/measure-event-bytes.mjs`,
-`scripts/submit-send-many.mjs`.
+The Halide hero stays as the owner chose it (dark ground in both themes,
+Syncopate, orange accent, grain, angled CTA), scoped under `.halide-body`, with
+Portaj's copy in its slots and the CTA linking to /exit. One CTA in the hero;
+"Try it on testnet" sits under the first section.
 
-## D-009 · `grace_ledgers = 120960`
+## D-010 · Rate limits fall back to memory
 
-Equal to testnet's `min_persistent_ttl` (7 days at the probed 5.0 s close
-time). A parcel stays restorable-free for a week after its return date.
-
-## D-010 · Hero: one CTA, with "Check for payments" as a text link
-
-PRD §6.1 asks for two hero buttons; frontend.md §6.2 allows one CTA. **Done:**
-"Send a payment" is the only button. "Check for payments" sits in the hero
-microcopy line as a text link, the way the reference header carries "Sign in".
-
-## D-011 · Hero visual is the product itself
-
-frontend.md §6.2 frames a looping video and light/dark dashboard images. We
-have neither yet (§13 warns against an empty frame). **Done:** the hero shows
-an illustration of the send results screen built from the app's own
-components, so it is correct in both themes by construction. The video modal
-is omitted (allowed by §6.2). A real screen recording can replace it later.
-
-## D-012 · Wallet modules chosen individually
-
-`defaultModules()` from Stellar Wallets Kit 2.7 imports a MetaMask adapter
-whose peer dependency (`@creit.tech/stellar-wallets-kit`) isn't installed, and
-the build fails. **Done:** Freighter, LOBSTR, xBull, Albedo, Hana and Rabet are
-imported one by one; WalletConnect is added when
-`NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` is set.
-
-## D-013 · Event lookups use a 4-segment topic filter
-
-**Found:** Stellar RPC rejects topic filters longer than 4 segments ("topic
-cannot have more than 4 segments"), and Mora's events carry 5 topics
-(`mora, <type>, from, to, token`, PRD §11.5). **Done:** lookups filter on
-`mora, *, from, **` and match `to` and `token` after decoding. Topics stay as
-specified. The index uses the same filter with `mora, **`.
-
-## D-014 · Partners pass `refund_after` in; never derive it from the ledger
-
-**Found** deploying `partner-example` on testnet: a contract that computed
-`refund_after = e.ledger().sequence() + N` before calling `mora.send` failed
-with `auth: invalid_action`. The payer authorizes Mora's `send` with exact
-arguments recorded during simulation; the ledger advances before the
-transaction applies, so the arguments no longer match. Unit tests with
-`mock_all_auths` can't catch this. **Done:** `pay` takes `refund_after` from
-the caller, and /integrate says so next to the snippet.
-
-## D-015 · Testnet only; mainnet cancelled for the hackathon
-
-**Changed:** on October 5, 2026 the hackathon organizers asked that builds stay
-on testnet. **Done:** no mainnet deployment and no real-money pilot (PRD §16,
-§19 M3–M4 out of scope). The app shows a single "Testnet" label instead of a
-network switch, and copy that mentioned a mainnet beta now says mainnet follows
-an audit. The mainnet configuration (Circle USDC/EURC, SACs verified on chain)
-and the owner-run deploy script stay in the repository, unused, for after an
-audit (PRD §17.1). The app lists mainnet only if `deployments/mainnet.json` says
-it is deployed, so nothing mainnet-related is reachable.
-
-## D-016 · Logo colour is the product's Waiting colour
-
-frontend.md gives the interface no brand colour. The logo still needed a colour
-version, so it borrows the one colour the product already owns: the Waiting
-status (`#884c07` light, `#f5b13d` dark), for the held payment, the thing Mora
-is about. The site header keeps the one-colour mark (colour stays in product
-UI); the colour mark is for the favicon, app icon, social card and anywhere the
-brand stands alone. Files and rules: `public/brand/README.md`.
-
-## D-017 · Landing hero: the Halide design, as given (owner's choice)
-
-The owner chose to use the Halide hero as given rather than the version
-adapted to frontend.md. It departs from frontend.md on purpose: dark ground in
-both themes, Syncopate, an orange accent (`#ff3c00`), grayscale photo layers
-(the component's own images), film grain, monospace readouts and an angled CTA.
-Changed only so it works inside the page: styles scoped under `.halide-body`
-(the original set `--accent` on `:root`, overriding the site's token), grain and
-interface `absolute` instead of `fixed` (they would have covered the whole
-site), `100%` instead of `100vw` (no sideways scroll), reduced motion respected,
-Syncopate self-hosted through next/font, and Mora's copy in the original slots
-with the CTA linking to /send. The rest of the site keeps frontend.md.
+FR-3.4 limits run on a Supabase table (`portaj_rate`). Without Supabase
+configured, or before the migration runs, they count per serverless instance,
+which is weaker but never unlimited. On-chain checks hold regardless: one
+account per derived G, and the sponsor refuses below a 20 XLM floor.

@@ -108,7 +108,7 @@ export type RelayPurpose = "exit" | "naive";
  * sponsor.
  */
 export async function relayTransfer(funcB64: string, authB64: string[], purpose: RelayPurpose) {
-  const func = xdr.HostFunction.fromXDR(funcB64, "base64");
+  const func = decode(() => xdr.HostFunction.fromXDR(funcB64, "base64"));
   if (func.switch().name !== "hostFunctionTypeInvokeContract") throw new Refusal("Only token transfers are relayed.");
   const call = func.invokeContract();
   const contract = Address.fromScAddress(call.contractAddress()).toString();
@@ -120,7 +120,7 @@ export async function relayTransfer(funcB64: string, authB64: string[], purpose:
   if (purpose === "exit") await assertSponsored(to);
   else if (to !== SIMULATOR_DEPOSIT) throw new Refusal("The before panel only sends to the exchange simulator.");
 
-  const auth = authB64.map((a) => xdr.SorobanAuthorizationEntry.fromXDR(a, "base64"));
+  const auth = decode(() => authB64.map((a) => xdr.SorobanAuthorizationEntry.fromXDR(a, "base64")));
   assertNoSourceAuth(auth);
   return { hash: await invokeAsSponsor(func, auth, 20_000_000n), from, to };
 }
@@ -256,6 +256,14 @@ export async function tryNaive(from: string, stroops: bigint, memo: { type: "id"
 }
 
 // ---------------------------------------------------------------------------
+
+function decode<T>(fn: () => T): T {
+  try {
+    return fn();
+  } catch {
+    throw new Refusal("That isn't valid XDR.");
+  }
+}
 
 function parse(envelope: string): Transaction | FeeBumpTransaction {
   try {

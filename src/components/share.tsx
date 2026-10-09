@@ -27,7 +27,7 @@ export function CopyButton({ text, label = "Copy link", size = "sm" }: { text: s
 
 export function TxLink({ href, label = "Transaction" }: { href: string; label?: string }) {
   return (
-    <a href={href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
+    <a href={href} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-1 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline sm:min-h-0">
       {label}
       <Icons.external className="h-3.5 w-3.5" />
     </a>

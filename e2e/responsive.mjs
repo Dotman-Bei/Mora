@@ -12,12 +12,13 @@ const WIDTHS = [320, 360, 390, 430, 768, 1024, 1280, 1440, 1920, 2560];
 const SHOTS = new Set([320, 768, 1024, 2560]);
 const PAGES = {
   landing: "/",
-  send: "/send",
+  exit: "/exit",
+  exitB: "/exit?mode=b",
   try: "/try",
-  inbox: "/inbox",
-  activity: "/activity",
-  integrate: "/integrate",
-  claim: "/claim?network=testnet&from=GBXUOWMDH7JDRVG6RLX6XR7GZ3SBDQ5QD3VJ7CVTW76T3EWJWFI3HEQB&to=GDWHSY5D4NQ72JR6DULVB2MM2OTAYGYJCTWACJOKJLFKWNVZY3XX43SN&asset=CABKO7FTLFX6LT3UXIWDBKVPE64RQYLQAHYYP6RBLW2OMBA7THKZXA74",
+  exchange: "/exchange",
+  recover: "/recover",
+  receipt: "/receipt",
+  how: "/how",
   notfound: "/nope",
 };
 
