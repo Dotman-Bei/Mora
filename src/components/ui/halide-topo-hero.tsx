@@ -143,9 +143,10 @@ export function HalideTopoHero({ brand, readouts, title, footnote, cta, classNam
         .halide-body .hero-title {
           grid-column: 1 / -1;
           align-self: center;
-          font-size: clamp(1.75rem, 4.2vw, 4.75rem);
-          line-height: 1;
-          letter-spacing: -0.04em;
+          font-size: clamp(2.25rem, 4.6vw, 5.5rem);
+          line-height: 1.15;
+          letter-spacing: 0.01em;
+          word-spacing: 0.08em;
           /* Syncopate's lowercase is mixed small caps; set it in capitals. */
           text-transform: uppercase;
           mix-blend-mode: difference;
