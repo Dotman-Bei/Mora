@@ -18,7 +18,8 @@ import { cn } from "@/lib/utils";
 // - reduced motion skips the entrance and the parallax (PRD §14);
 // - copy is Mora's, and the CTA links to /send.
 
-const syncopate = Syncopate({ weight: ["400", "700"], subsets: ["latin"], display: "swap" });
+// Only bold is used: the readouts and footnote set their own monospace face.
+const syncopate = Syncopate({ weight: "700", subsets: ["latin"], display: "swap" });
 
 export interface HalideTopoHeroProps {
   brand: string;
@@ -120,9 +121,9 @@ export function HalideTopoHero({ brand, readouts, title, footnote, cta, classNam
           background-position: center;
           transition: transform 0.5s ease;
         }
-        .halide-body .layer-1 { background-image: url('https://cdn.21st.dev/assets/mirror/e5/e5ef2d30267a4e7f81bc0a61283385f0e59c348d8e69a017f1a87b5323fd8abc.jpg'); filter: grayscale(1) contrast(1.2) brightness(0.5); }
-        .halide-body .layer-2 { background-image: url('https://cdn.21st.dev/assets/mirror/80/80f63f867cb6db0e217d01b6b23e0d623b38d7791dc6a5c6b647744541e4f71d.jpg'); filter: grayscale(1) contrast(1.1) brightness(0.7); opacity: 0.6; mix-blend-mode: screen; }
-        .halide-body .layer-3 { background-image: url('https://cdn.21st.dev/assets/mirror/59/597353f775e864ce7ab427b39deecf97b8de0560e30cb3749da756c896a17023.jpg'); filter: grayscale(1) contrast(1.3) brightness(0.8); opacity: 0.4; mix-blend-mode: overlay; }
+        .halide-body .layer-1 { background-image: url('/hero/layer-1.webp'); filter: grayscale(1) contrast(1.2) brightness(0.5); }
+        .halide-body .layer-2 { background-image: url('/hero/layer-2.webp'); filter: grayscale(1) contrast(1.1) brightness(0.7); opacity: 0.6; mix-blend-mode: screen; }
+        .halide-body .layer-3 { background-image: url('/hero/layer-3.webp'); filter: grayscale(1) contrast(1.3) brightness(0.8); opacity: 0.4; mix-blend-mode: overlay; }
         .halide-body .contours {
           position: absolute;
           width: 200%; height: 200%;
