@@ -2,7 +2,7 @@
 //   node e2e/weight.mjs [base-url]
 import { chromium } from "playwright-core";
 const BASE = (process.argv[2] ?? "http://localhost:3100").replace(/\/$/, "");
-const PAGES = { landing: "/", exit: "/exit", try: "/try", exchange: "/exchange", recover: "/recover", how: "/how" };
+const PAGES = { landing: "/", wallet: "/app", carry: "/app/carry", receipts: "/app/receipts", exchange: "/app/exchange", how: "/how" };
 const b = await chromium.launch({ executablePath: process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe" });
 for (const [name, path] of Object.entries(PAGES)) {
   const ctx = await b.newContext();

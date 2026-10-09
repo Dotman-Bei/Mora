@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { NETWORK } from "@/lib/config";
 import { site } from "@/lib/site.config";
+import { isAppPath } from "./header";
 
 export function Footer() {
+  if (isAppPath(usePathname())) return <AppFooter />;
   return (
     <footer className="relative overflow-hidden border-t border-border">
       <div className="mx-auto max-w-[1400px] px-4 py-16 sm:px-8 sm:pb-80">
@@ -55,6 +58,27 @@ export function Footer() {
         className="pointer-events-none absolute bottom-0 left-1/2 hidden -translate-x-1/2 translate-y-[38%] select-none font-sans text-[200px] leading-none text-secondary text-stroke sm:block sm:text-[508px]"
       >
         {site.wordmark}
+      </div>
+    </footer>
+  );
+}
+
+/** Inside the app: status and the essentials, no marketing. */
+function AppFooter() {
+  return (
+    <footer className="border-t border-border">
+      <div className="mx-auto flex max-w-[1400px] flex-col gap-4 px-4 py-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between xl:px-6 2xl:px-8">
+        <NetworkStatus />
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+          <Link href="/how" className="inline-flex min-h-10 items-center transition-colors hover:text-foreground sm:min-h-0">
+            How it works
+          </Link>
+          <Link href="/" className="inline-flex min-h-10 items-center transition-colors hover:text-foreground sm:min-h-0">
+            Portaj home
+          </Link>
+          <span>{site.footer.note}</span>
+          <ThemeToggle />
+        </div>
       </div>
     </footer>
   );

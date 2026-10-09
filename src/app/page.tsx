@@ -11,7 +11,7 @@ export default function Home() {
     <>
       <Hero />
 
-      <Section>
+      <Section id="why">
         <SectionHeader
           title="Three walls between a smart wallet and an exchange"
           subtitle="Each one is a network rule, not a bug. Portaj routes around all three with features Stellar already has."
@@ -49,7 +49,7 @@ export default function Home() {
       </Section>
 
       <Rule />
-      <Section>
+      <Section id="security">
         <Guarantees />
       </Section>
 

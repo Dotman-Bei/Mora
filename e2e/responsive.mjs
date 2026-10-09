@@ -12,12 +12,11 @@ const WIDTHS = [320, 360, 390, 430, 768, 1024, 1280, 1440, 1920, 2560];
 const SHOTS = new Set([320, 768, 1024, 2560]);
 const PAGES = {
   landing: "/",
-  exit: "/exit",
-  exitB: "/exit?mode=b",
-  try: "/try",
-  exchange: "/exchange",
-  recover: "/recover",
-  receipt: "/receipt",
+  wallet: "/app",
+  carry: "/app/carry",
+  carryB: "/app/carry?mode=b",
+  receipts: "/app/receipts",
+  exchange: "/app/exchange",
   how: "/how",
   notfound: "/nope",
 };

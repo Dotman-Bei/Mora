@@ -10,8 +10,8 @@ export default function NotFound() {
       <p className="text-sm text-muted-foreground">If you followed a receipt link, check it was copied in full.</p>
       <div className="flex gap-3">
         <ButtonLink href="/">Home</ButtonLink>
-        <ButtonLink href="/exit" variant="outline">
-          Exit to an exchange
+        <ButtonLink href="/app" variant="outline">
+          Open app
         </ButtonLink>
       </div>
     </div>

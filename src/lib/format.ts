@@ -11,6 +11,6 @@ export function passkeyError(e: unknown): string {
   if (name === "NotAllowedError" || /not allowed|cancel|timed out|abort/i.test(msg)) return "The passkey prompt was closed. Nothing was sent.";
   if (name === "InvalidStateError") return "This device already has that passkey.";
   if (name === "NotSupportedError" || /not supported/i.test(msg)) return "This browser can't use passkeys here.";
-  if (code === "WALLET_NOT_FOUND" || /resolve a wallet/i.test(msg)) return "No Portaj smart wallet found for that passkey. Create one under Try it, or use Another wallet on the Exit page.";
+  if (code === "WALLET_NOT_FOUND" || /resolve a wallet/i.test(msg)) return "No Portaj smart wallet found for that passkey. Create one under Wallet, or use Another wallet on Carry.";
   return msg || "Something went wrong with the passkey.";
 }

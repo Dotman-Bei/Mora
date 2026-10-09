@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AddressLine, Notice, Page } from "@/components/portaj";
 import { CopyButton, TxLink } from "@/components/share";
-import { ButtonLink, Eyebrow, Skeleton } from "@/components/ui";
+import { ButtonLink, Chip, Eyebrow, Skeleton } from "@/components/ui";
 import { formatUsdc } from "@/lib/amount";
 import { SIMULATOR_DEPOSIT, txUrl } from "@/lib/config";
 import { short } from "@/lib/format";
@@ -44,7 +44,13 @@ export function ExchangeView() {
           Exchange <em className="not-italic text-muted-foreground">simulator</em>
         </>
       }
-      intro="Testnet exchange simulator. Real exchanges behave this way per SDF documentation: a deposit is credited when it's a classic USDC payment carrying your memo."
+      intro="A stand-in for a real exchange, because none runs on testnet. Real exchanges behave this way per SDF documentation: a deposit is credited when it's a classic USDC payment carrying your memo."
+      aside={
+        <Chip>
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-waiting" aria-hidden />
+          Testnet only · not a real exchange
+        </Chip>
+      }
     >
       <div className="grid gap-6 border border-border p-4 sm:grid-cols-[1fr_auto] sm:items-end">
         <div className="space-y-4">
@@ -60,8 +66,8 @@ export function ExchangeView() {
           </div>
           <p className="text-xs text-muted-foreground">This account sets config.memo_required = 1 (SEP-29), like real exchange deposit accounts.</p>
         </div>
-        <ButtonLink href={`/exit?to=${SIMULATOR_DEPOSIT}&memoType=id&memo=${memo}`} size="lg">
-          Deposit with Portaj
+        <ButtonLink href={`/app/carry?to=${SIMULATOR_DEPOSIT}&memoType=id&memo=${memo}`} size="lg">
+          Carry here with Portaj
         </ButtonLink>
       </div>
 

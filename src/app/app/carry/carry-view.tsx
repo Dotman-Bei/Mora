@@ -3,21 +3,29 @@
 import type { Keypair } from "@stellar/stellar-sdk";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ExitAccountCard, Field, Input, inputClass, Notice, Page, Receipt, receiptUrl, Steps, useAccount, type ReceiptData, type Step } from "@/components/portaj";
+import { Field, Input, inputClass, Notice, Page, Receipt, receiptUrl, Steps, TransitAccountCard, useAccount, type ReceiptData, type Step } from "@/components/portaj";
 import { useSession } from "@/components/providers";
-import { CopyButton } from "@/components/share";
+import { Icons } from "@/components/icons";
+import { CopyButton, TxLink } from "@/components/share";
 import { Button, ButtonLink, Eyebrow } from "@/components/ui";
 import { formatUsdc, parseUsdc } from "@/lib/amount";
-import { SIMULATOR_DEPOSIT, SPONSOR, txUrl } from "@/lib/config";
+import type { NaiveResult } from "@/lib/api";
+import { IS_TESTNET, NETWORK, SIMULATOR_DEPOSIT, SPONSOR, txUrl } from "@/lib/config";
 import { memoLabel, parseDestination, parseMemo, type MemoType } from "@/lib/destination";
 import { passkeyError, short } from "@/lib/format";
 import { getAccount, type AccountState } from "@/lib/horizon";
-import { store } from "@/lib/store";
+import { simulatorMemo } from "@/lib/simulator";
+import { store, type WalletRef } from "@/lib/store";
+
+// FR-1 to FR-6: the carry itself. On testnet, FR-7 sits beside it: the normal
+// way, refused by the network, next to Portaj's way through.
+
+const CORE_RULE = "https://github.com/stellar/stellar-core/blob/ba6a4e6e322a8069b85bdf48a35d971a2d72cc81/src/transactions/TransactionFrame.cpp";
 
 type Mode = "A" | "B";
 type Stage = "form" | "account" | "wait" | "sending" | "done";
 
-export function ExitView() {
+export function CarryView() {
   const session = useSession();
   const { wallet, exit, setExit } = session;
 
@@ -40,7 +48,7 @@ export function ExitView() {
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   const kpRef = useRef<Keypair | null>(null);
 
-  // Prefill from a link (/try sends judges here with the simulator's details).
+  // Prefill from a link (the wallet and the simulator send judges here with its details).
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
     if (q.get("to")) setTo(q.get("to")!);
@@ -90,7 +98,7 @@ export function ExitView() {
 
   // Field-level problems show under their field; these are the rest.
   const blockers: string[] = [];
-  if (dest?.ok && destState && !destState.exists) blockers.push("That address doesn't exist on testnet.");
+  if (dest?.ok && destState && !destState.exists) blockers.push(`That address doesn't exist on ${NETWORK.label.toLowerCase()}.`);
   if (dest?.ok && destState?.exists && !destState.usdc) blockers.push("That address has no USDC trustline, so it can't receive USDC.");
   const memoMissing = dest?.ok && dest.value.kind !== "M" && memoType === "none";
   if (memoMissing && destState?.memoRequired) blockers.push("This exchange requires a memo (SEP-29). Add the memo it showed you.");
@@ -133,7 +141,7 @@ export function ExitView() {
           adopt(exit.keypair, wallet.keyId);
           return setStage("account");
         }
-        // Known exit account, already set up: the transfer-in prompt will derive the key (§10.3).
+        // Known transit account, already set up: the transfer-in prompt will derive the key (§10.3).
         const known = store.exitFor(wallet.keyId);
         if (known) {
           const a = await getAccount(known);
@@ -214,7 +222,7 @@ export function ExitView() {
     store.clearPending(k.publicKey());
     setReceipt(r);
     setStage("done");
-    window.history.replaceState(null, "", receiptUrl(r).replace("/receipt", "/exit"));
+    window.history.replaceState(null, "", receiptUrl(r).replace("/app/receipts", "/app/carry"));
     void loadBalance();
   }
 
@@ -250,7 +258,7 @@ export function ExitView() {
         }
         if (!k || k.publicKey() !== account) {
           setFailedAt("in");
-          throw new Error("This passkey gave a different exit account, so nothing was sent. Use the passkey this wallet was created with, on the device you started on.");
+          throw new Error("This passkey gave a different transit account, so nothing was sent. Use the passkey this wallet was created with, on the device you started on.");
         }
         adopt(k, wallet.keyId);
       }
@@ -288,14 +296,14 @@ export function ExitView() {
   const resume = () =>
     run("send", async () => {
       const k = kpRef.current;
-      if (!k) throw new Error("Open Recover and sign in with your passkey to resume.");
+      if (!k) throw new Error("Open Receipts and sign in with your passkey to resume.");
       await finish(k, hashes.in);
     });
 
   const returnToWallet = () =>
     run("return", async () => {
       const k = kpRef.current;
-      if (!k || !wallet) throw new Error("Open Recover and sign in with your passkey to return the funds.");
+      if (!k || !wallet) throw new Error("Open Receipts and sign in with your passkey to return the funds.");
       const ex = await import("@/lib/exit");
       const r = await ex.returnAll(k, wallet.contractId);
       store.clearPending(k.publicKey());
@@ -312,49 +320,53 @@ export function ExitView() {
   const needsFile = oneTime && !savedFile;
 
   const steps: Step[] = [
-    { label: "Set up exit account (paid by Portaj)", state: hashes.setup ? "done" : "skipped", detail: hashes.setup ? "Confirmed" : "Already set up", hash: hashes.setup },
+    { label: "Set up transit account (paid by Portaj)", state: hashes.setup ? "done" : "skipped", detail: hashes.setup ? "Confirmed" : "Already set up", hash: hashes.setup },
     mode === "A"
       ? {
-          label: "Smart wallet → exit account",
+          label: "Smart wallet → transit account",
           state: hashes.in ? "done" : failedAt === "in" ? "failed" : stage === "sending" ? "active" : "idle",
           detail: hashes.in ? "Confirmed" : failedAt === "in" ? "Nothing moved" : stage === "sending" ? "Waiting for your passkey…" : undefined,
           hash: hashes.in,
         }
-      : { label: "Your wallet → exit account", state: hashes.in || arrived ? "done" : "active", detail: arrived ? "Arrived" : "Waiting for your transfer…", hash: hashes.in },
+      : { label: "Your wallet → transit account", state: hashes.in || arrived ? "done" : "active", detail: arrived ? "Arrived" : "Waiting for your transfer…", hash: hashes.in },
     {
-      label: `Exit account → exchange, ${dest?.ok && memoParsed.ok ? memoLabel(dest.value, memoParsed.value).toLowerCase() : "memo"}`,
+      label: `Transit account → exchange, ${dest?.ok && memoParsed.ok ? memoLabel(dest.value, memoParsed.value).toLowerCase() : "memo"}`,
       state: hashes.out ? "done" : failedAt === "out" ? "failed" : hashes.in || (mode === "B" && arrived) ? "active" : "idle",
-      detail: hashes.out ? "Confirmed" : failedAt === "out" ? "Failed, your USDC is in your exit account" : hashes.in ? "Sending…" : undefined,
+      detail: hashes.out ? "Confirmed" : failedAt === "out" ? "Failed, your USDC is in your transit account" : hashes.in ? "Sending…" : undefined,
       hash: hashes.out,
     },
   ];
 
-  if (stage === "done" && receipt) {
-    return (
-      <Page title="Sent." intro="Your USDC reached the exchange as a classic payment with your memo.">
-        <Receipt r={receipt} />
-        <div className="flex flex-wrap gap-3">
-          {receipt.destination === SIMULATOR_DEPOSIT ? <ButtonLink href={`/exchange?memo=${encodeURIComponent(memo)}`}>See it credited</ButtonLink> : null}
-          <CopyButton text={`${window.location.origin}${receiptUrl(receipt)}`} label="Copy receipt link" size="default" />
-          <Button
-            variant="outline"
-            onClick={() => {
-              setStage("form");
-              setHashes({});
-              setReceipt(null);
-              setAmount("");
-              window.history.replaceState(null, "", "/exit");
-            }}
-          >
-            New exit
-          </Button>
-        </div>
-      </Page>
-    );
-  }
+  const fillSimulator = () => {
+    setTo(SIMULATOR_DEPOSIT);
+    setMemoType("id");
+    setMemo(simulatorMemo());
+  };
 
-  return (
-    <Page title="Exit to an exchange" intro="Paste the deposit address and memo your exchange shows for Stellar USDC. Portaj carries your USDC through your own exit account and pays the exchange with the memo.">
+  const done = stage === "done" && receipt;
+
+  const main = done ? (
+    <>
+      <Receipt r={receipt} />
+      <div className="flex flex-wrap gap-3">
+        {receipt.destination === SIMULATOR_DEPOSIT && IS_TESTNET ? <ButtonLink href={`/app/exchange?memo=${encodeURIComponent(memo)}`}>See it credited</ButtonLink> : null}
+        <CopyButton text={`${window.location.origin}${receiptUrl(receipt)}`} label="Copy receipt link" size="default" />
+        <Button
+          variant="outline"
+          onClick={() => {
+            setStage("form");
+            setHashes({});
+            setReceipt(null);
+            setAmount("");
+            window.history.replaceState(null, "", "/app/carry");
+          }}
+        >
+          New carry
+        </Button>
+      </div>
+    </>
+  ) : (
+    <>
       {stage === "form" ? (
         <>
           <div className="inline-flex border border-border text-sm" role="radiogroup" aria-label="Where your USDC is" id="another-wallet">
@@ -389,21 +401,31 @@ export function ExitView() {
               </div>
             ) : (
               <Notice title="Sign in with your Portaj smart wallet">
-                Use <span className="text-foreground">Sign in with passkey</span> at the top, or{" "}
-                <Link href="/try" className="text-foreground underline underline-offset-4">
-                  create a test wallet
+                Use <span className="text-foreground">Sign in</span> at the top, or{" "}
+                <Link href="/app" className="text-foreground underline underline-offset-4">
+                  {IS_TESTNET ? "create a test wallet" : "open your wallet"}
                 </Link>{" "}
                 first. Your wallet lives on another site? Choose <span className="text-foreground">Another wallet</span>.
               </Notice>
             )
           ) : (
             <Notice title="Bring your own smart wallet">
-              Passkeys belong to the site that made them, so Portaj can&apos;t sign for your wallet. You&apos;ll send the USDC to your exit account from your own wallet app; Portaj pays it out with the memo.
+              Passkeys belong to the site that made them, so Portaj can&apos;t sign for your wallet. You&apos;ll send the USDC to your transit account from your own wallet app; Portaj pays it out with the memo.
             </Notice>
           )}
 
           <div className="space-y-5">
-            <Field label="Exchange deposit address (G… or M…)" error={dest && !dest.ok ? dest.error : null}>
+            <Field
+              label="Exchange deposit address (G… or M…)"
+              error={dest && !dest.ok ? dest.error : null}
+              hint={
+                IS_TESTNET && to.trim() !== SIMULATOR_DEPOSIT ? (
+                  <button type="button" onClick={fillSimulator} className="text-left underline-offset-4 hover:text-foreground hover:underline">
+                    No exchange on testnet? Use the exchange simulator&apos;s address and memo
+                  </button>
+                ) : null
+              }
+            >
               <Input value={to} onChange={(e) => setTo(e.target.value)} placeholder="G…" name="destination" />
             </Field>
             {dest?.ok ? (
@@ -415,6 +437,7 @@ export function ExitView() {
                     {destState.exists ? <Chip ok={!!destState.usdc}>{destState.usdc ? "Can receive USDC" : "No USDC trustline"}</Chip> : null}
                     {destState.memoRequired ? <Chip ok={!memoMissing}>Memo required (SEP-29)</Chip> : null}
                     {dest.value.kind === "M" ? <Chip ok>Muxed ID {dest.value.muxedId} is the memo</Chip> : null}
+                    {dest.value.address === SIMULATOR_DEPOSIT ? <Chip ok>Exchange simulator</Chip> : null}
                   </>
                 ) : (
                   <span className="text-muted-foreground">Checking the address…</span>
@@ -458,13 +481,13 @@ export function ExitView() {
             </Button>
             {mode === "B" ? (
               <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">First time on Portaj? Create a passkey. Use the same device next time: your exit account comes from this passkey.</p>
+                <p className="text-xs text-muted-foreground">First time on Portaj? Create a passkey. Use the same device next time: your transit account comes from this passkey.</p>
                 <Button variant="outline" disabled={!ready || !!busy} onClick={() => void continueWithPasskey(true)}>
                   Create a passkey
                 </Button>
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground">One passkey prompt per exit · No XLM · Fees paid by Portaj</p>
+              <p className="text-xs text-muted-foreground">One passkey prompt per carry · No XLM · Fees paid by Portaj</p>
             )}
           </div>
         </>
@@ -472,12 +495,12 @@ export function ExitView() {
 
       {stage !== "form" && account ? (
         <>
-          <ExitAccountCard account={account} state={acct.state} />
+          <TransitAccountCard account={account} state={acct.state} />
 
           {oneTime ? (
             <Notice tone="warn" title="Your passkey can't derive a key on this device">
               <p>
-                It didn&apos;t return a PRF value, so Portaj made a one-time key held only in this tab. Keep this page open until the exit finishes: if the tab closes between steps, the USDC sits in an account only that key can move.
+                It didn&apos;t return a PRF value, so Portaj made a one-time key held only in this tab. Keep this page open until the carry finishes: if the tab closes between steps, the USDC sits in an account only that key can move.
               </p>
               <Button variant="outline" size="sm" className="mt-3" onClick={() => void saveRecovery()}>
                 {savedFile ? "Recovery file saved" : "Download the recovery file"}
@@ -487,7 +510,7 @@ export function ExitView() {
 
           {stage === "account" && !accountReady ? (
             <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">First exit with this passkey: your exit account gets created with 0 XLM and a USDC trustline. Portaj pays the reserves and the fee.</p>
+              <p className="text-sm text-muted-foreground">First carry with this passkey: your transit account gets created with 0 XLM and a USDC trustline. Portaj pays the reserves and the fee.</p>
               <Button size="lg" disabled={!!busy || needsFile || !acct.state} onClick={() => void setUp()}>
                 {busy === "setup" ? "Setting up…" : "Set up (paid by Portaj)"}
               </Button>
@@ -501,7 +524,7 @@ export function ExitView() {
                 <Button size="lg" disabled={!!busy || needsFile} onClick={() => void send()} data-testid="send">
                   {busy === "send" ? "Waiting for your passkey…" : `Send ${amt?.ok ? formatUsdc(amt.value) : ""} USDC`}
                 </Button>
-                <p className="text-xs text-muted-foreground">Your passkey signs the transfer into your exit account. The payment out follows in the next ledger.</p>
+                <p className="text-xs text-muted-foreground">Your passkey signs the transfer into your transit account. The payment out follows in the next ledger.</p>
               </div>
             ) : (
               <Button size="lg" disabled={!!busy || needsFile || !kp} onClick={() => setStage("wait")}>
@@ -512,11 +535,11 @@ export function ExitView() {
 
           {stage === "wait" && amt?.ok ? (
             <div className="space-y-4">
-              <Notice title={`Send exactly ${formatUsdc(amt.value)} USDC to your exit account from your wallet.`}>
+              <Notice title={`Send exactly ${formatUsdc(amt.value)} USDC to your transit account from your wallet.`}>
                 Use your wallet&apos;s normal send. No memo needed for this leg. Portaj pays the exchange as soon as it arrives.
               </Notice>
               <div className="flex flex-wrap items-center gap-3">
-                <CopyButton text={account} label="Copy exit account" size="default" />
+                <CopyButton text={account} label="Copy transit account" size="default" />
                 <CopyButton text={formatUsdc(amt.value)} label="Copy amount" size="default" />
               </div>
               <p className="font-mono text-sm text-foreground" aria-live="polite">
@@ -529,18 +552,18 @@ export function ExitView() {
           {stage === "sending" ? <Steps steps={steps} /> : null}
 
           {failedAt === "out" ? (
-            <Notice tone="warn" title="Your USDC is safe in your exit account">
+            <Notice tone="warn" title="Your USDC is safe in your transit account">
               <p>The payment out didn&apos;t go through. Try it again, or send the USDC back to your wallet.</p>
               <div className="mt-3 flex flex-wrap gap-3">
                 <Button size="sm" onClick={() => void resume()} disabled={!!busy}>
-                  {busy === "send" ? "Sending…" : "Resume exit"}
+                  {busy === "send" ? "Sending…" : "Resume carry"}
                 </Button>
                 {mode === "A" && wallet ? (
                   <Button size="sm" variant="outline" onClick={() => void returnToWallet()} disabled={!!busy}>
                     {busy === "return" ? "Returning…" : "Return to my wallet"}
                   </Button>
                 ) : (
-                  <ButtonLink size="sm" variant="outline" href="/recover">
+                  <ButtonLink size="sm" variant="outline" href="/app/receipts#recover">
                     Return to my wallet
                   </ButtonLink>
                 )}
@@ -577,21 +600,172 @@ export function ExitView() {
           {error}
         </Notice>
       ) : null}
+    </>
+  );
 
-      <div className="border-t border-border pt-6">
-        <Eyebrow>Testnet</Eyebrow>
-        <p className="mt-2 text-sm text-muted-foreground">
-          No real exchange runs on testnet. Use the{" "}
-          <Link href="/exchange" className="text-foreground underline underline-offset-4">
-            exchange simulator
-          </Link>
-          &apos;s deposit address and a memo to see a deposit credited.
-        </p>
+  // The normal way uses the same details when they point at the simulator.
+  const sameAsForm = to.trim() === SIMULATOR_DEPOSIT && memoType === "id" && memoParsed.ok;
+
+  return (
+    <Page
+      wide
+      title={done ? "Sent." : "Carry to an exchange"}
+      intro={
+        done
+          ? "Your USDC reached the exchange as a classic payment with your memo."
+          : "Paste the deposit address and memo your exchange shows for Stellar USDC. Portaj carries your USDC through your own transit account and pays the exchange with the memo."
+      }
+    >
+      <div className={`grid gap-14 ${IS_TESTNET ? "lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:gap-0" : "max-w-3xl"}`}>
+        <section className={`min-w-0 space-y-8 ${IS_TESTNET ? "lg:pr-12" : ""}`} aria-labelledby={IS_TESTNET ? "with-portaj" : undefined}>
+          {IS_TESTNET ? <ColumnHead id="with-portaj" tone="delivered" label="With Portaj" note="Classic payment, memo attached" /> : null}
+          {main}
+        </section>
+        {IS_TESTNET ? (
+          <aside id="normal-way" className="min-w-0 scroll-mt-36 border-t border-border pt-10 md:scroll-mt-28 lg:border-l lg:border-t-0 lg:pl-12 lg:pt-0" aria-labelledby="normal-way-title">
+            <NormalWay wallet={wallet} memo={sameAsForm ? memo : null} amount={amt?.ok ? amount : null} onBalance={() => void loadBalance()} />
+          </aside>
+        ) : null}
       </div>
     </Page>
+  );
+}
+
+function ColumnHead({ id, tone, label, note }: { id: string; tone: "delivered" | "returned"; label: string; note: string }) {
+  return (
+    <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border pb-3">
+      <h2 id={id} className="flex items-center gap-2 text-lg text-foreground">
+        <span className={`inline-block h-2 w-2 rounded-full ${tone === "delivered" ? "bg-delivered" : "bg-returned"}`} aria-hidden />
+        {label}
+      </h2>
+      <span className="text-xs text-muted-foreground">{note}</span>
+    </div>
+  );
+}
+
+/** FR-7: the smart wallet sends straight to the exchange, memo attached, and the network refuses it. */
+function NormalWay({ wallet, memo: formMemo, amount: formAmount, onBalance }: { wallet: WalletRef | null; memo: string | null; amount: string | null; onBalance: () => void }) {
+  const [ownMemo, setOwnMemo] = useState("");
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [naive, setNaive] = useState<NaiveResult | null>(null);
+  const [noMemo, setNoMemo] = useState<string | null>(null);
+  useEffect(() => setOwnMemo(simulatorMemo()), []);
+
+  const memo = formMemo ?? ownMemo;
+  const amount = formAmount ?? "20";
+  // A small amount for the memo-less send: it lands for real and isn't credited.
+  const noMemoAmount = "1";
+
+  async function run(at: string, fn: () => Promise<void>) {
+    setBusy(at);
+    setError(null);
+    try {
+      await fn();
+    } catch (e) {
+      setError(passkeyError(e));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const tryNormal = () =>
+    run("before", async () => {
+      const { api } = await import("@/lib/api");
+      setNaive(await api.before(wallet!.contractId, amount, "id", memo));
+    });
+
+  const tryWithoutMemo = () =>
+    run("nomemo", async () => {
+      const [{ signTransfer }, { api }] = await Promise.all([import("@/lib/wallet"), import("@/lib/api")]);
+      const a = parseUsdc(noMemoAmount);
+      if (!a.ok) throw new Error(a.error);
+      const p = await signTransfer(wallet!, SIMULATOR_DEPOSIT, a.value);
+      setNoMemo((await api.relay(p.func, p.auth, "naive")).hash);
+      onBalance();
+    });
+
+  return (
+    <div className="space-y-6">
+      <ColumnHead id="normal-way-title" tone="returned" label="The normal way" note="Smart wallet straight to the exchange" />
+      <p className="text-sm text-muted-foreground">
+        What a smart wallet does today: a contract transfer to the exchange, memo attached. The network refuses it before any signature is checked, so nothing moves and no fee is charged.
+      </p>
+
+      <dl className="border border-border text-sm">
+        {(
+          [
+            ["To", "Exchange simulator"],
+            ["Memo", `ID ${memo || "…"}`],
+            ["Amount", `${amount} USDC`],
+          ] as const
+        ).map(([k, v]) => (
+          <div key={k} className="flex justify-between gap-4 border-b border-border px-4 py-2.5 last:border-b-0">
+            <dt className="text-muted-foreground">{k}</dt>
+            <dd className="font-mono tabular text-foreground">{v}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <div className="space-y-2">
+        <Button variant="outline" size="lg" onClick={() => void tryNormal()} disabled={!wallet || !!busy || !memo} data-testid="try-normal">
+          {busy === "before" ? "Sending…" : "Try the normal way"}
+        </Button>
+        {!wallet ? <p className="text-xs text-muted-foreground">Needs a Portaj wallet. Sign in, or create a test wallet on Wallet.</p> : null}
+      </div>
+
+      {naive ? (
+        <div className="space-y-3 border border-destructive/50 p-4" data-testid="before-result">
+          <Eyebrow>The network&apos;s answers</Eyebrow>
+          <dl className="space-y-2 text-sm">
+            <div>
+              <dt className="text-muted-foreground">simulateTransaction</dt>
+              <dd className="break-words font-mono text-foreground">{naive.simulate}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">sendTransaction</dt>
+              <dd className="font-mono text-foreground">
+                {naive.send.status} · {naive.send.code ?? "—"} ({naive.send.xdrCode ?? "—"})
+              </dd>
+            </div>
+          </dl>
+          <p className="text-xs text-muted-foreground">
+            The rule is stellar-core&apos;s{" "}
+            <a href={CORE_RULE} target="_blank" rel="noreferrer" className="underline underline-offset-4">
+              TransactionFrame::validateSorobanMemo
+            </a>
+            , which logs &ldquo;Soroban transactions are not allowed to use memo or muxed source account&rdquo; and marks the transaction malformed.
+          </p>
+          <div className="space-y-3 border-t border-border pt-3">
+            <p className="text-sm text-muted-foreground">Drop the memo and {noMemoAmount} USDC goes through, but the exchange can&apos;t tell it&apos;s yours, and exchanges don&apos;t credit contract transfers.</p>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button variant="outline" size="sm" onClick={() => void tryWithoutMemo()} disabled={!!busy || !!noMemo}>
+                {busy === "nomemo" ? "Waiting for your passkey…" : "Send without the memo"}
+              </Button>
+              {noMemo ? (
+                <>
+                  <TxLink href={txUrl(noMemo)} label="It landed on chain" />
+                  <ButtonLink href="/app/exchange" size="sm" variant="link">
+                    The simulator didn&apos;t credit it →
+                  </ButtonLink>
+                </>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-start gap-3 border border-dashed border-border p-4 text-xs text-muted-foreground">
+          <Icons.close className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          The network&apos;s own answer shows here, verbatim.
+        </div>
+      )}
+
+      {error ? <Notice tone="error">{error}</Notice> : null}
+    </div>
   );
 }
 
 function Chip({ ok, children }: { ok: boolean; children: React.ReactNode }) {
   return <span className={`rounded-full border px-2.5 py-0.5 ${ok ? "border-delivered/40 text-delivered" : "border-waiting/50 text-waiting"}`}>{children}</span>;
 }
+

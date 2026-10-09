@@ -67,7 +67,7 @@ export function SectionHeader({ title, subtitle }: { title: ReactNode; subtitle?
 
 export function Section({ children, className = "", id }: { children: ReactNode; className?: string; id?: string }) {
   return (
-    <section id={id} className={`mx-auto max-w-[1400px] py-12 sm:py-16 lg:py-24 ${className}`}>
+    <section id={id} className={`mx-auto max-w-[1400px] scroll-mt-16 py-12 sm:py-16 lg:py-24 ${className}`}>
       {children}
     </section>
   );

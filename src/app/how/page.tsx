@@ -103,7 +103,7 @@ G     = Keypair.fromRawEd25519Seed(seed)`}</pre>
       <Block title="Verify it yourself">
         <ol className="list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
           <li>
-            On <span className="text-foreground">Try it</span>, &ldquo;Send with the memo&rdquo; returns the network&apos;s own rejection. It matches stellar-core&apos;s{" "}
+            On <span className="text-foreground">Carry</span>, &ldquo;Try the normal way&rdquo; returns the network&apos;s own rejection. It matches stellar-core&apos;s{" "}
             <Ext href="https://github.com/stellar/stellar-core/blob/ba6a4e6e322a8069b85bdf48a35d971a2d72cc81/src/transactions/TransactionFrame.cpp">validateSorobanMemo</Ext> rule.
           </li>
           <li>On stellar.expert, your exit account shows 0 XLM, with the account and trustline reserves sponsored by the address above.</li>

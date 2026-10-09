@@ -112,6 +112,8 @@
   }
   html {
     -webkit-text-size-adjust: 100%;
+    /* The header's in-page links glide; reduced motion turns it off below. */
+    scroll-behavior: smooth;
   }
   body {
     background: hsl(var(--background));

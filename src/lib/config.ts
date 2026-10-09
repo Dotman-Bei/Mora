@@ -4,13 +4,16 @@ import testnet from "./testnet.json";
 // scripts/setup-testnet.mjs; the sponsor secret lives in the server env only.
 
 export const NETWORK = {
-  id: "testnet" as const,
+  id: "testnet" as "testnet" | "mainnet",
   label: "Testnet",
   passphrase: "Test SDF Network ; September 2015",
   rpcUrl: process.env.NEXT_PUBLIC_RPC_URL ?? "https://soroban-testnet.stellar.org",
   horizonUrl: process.env.NEXT_PUBLIC_HORIZON_URL ?? "https://horizon-testnet.stellar.org",
   explorer: "https://stellar.expert/explorer/testnet",
 };
+
+/** The exchange simulator and the test wallet tools exist on testnet only. */
+export const IS_TESTNET = NETWORK.id === "testnet";
 
 /** Circle USDC only (FR-1.6). Never a look-alike issuer. */
 export const USDC = {

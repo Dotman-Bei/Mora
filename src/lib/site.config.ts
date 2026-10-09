@@ -14,8 +14,8 @@ export const site = {
     readouts: ["NETWORK: STELLAR TESTNET", "XLM HELD BY YOU: 0"] as [string, string],
     title: ["SMART WALLET", "TO EXCHANGE"],
     footnote: ["[ PASSKEY · MEMO · NO XLM ]", "SEND USDC FROM YOUR PASSKEY WALLET TO ANY EXCHANGE. NO XLM. NO SEED PHRASE."] as [string, string],
-    cta: { label: "Exit to an exchange", href: "/exit" },
-    secondary: { label: "Try it on testnet", href: "/try" },
+    cta: { label: "Carry to an exchange", href: "/app/carry" },
+    secondary: { label: "Try it on testnet", href: "/app" },
     micro: ["One passkey prompt", "Memo included", "Fees paid by Portaj"],
   },
 
@@ -46,13 +46,13 @@ export const site = {
   ],
 
   features: [
-    { href: "/exit", icon: "send", name: "Exit", descriptor: "Wallet to exchange" },
-    { href: "/try", icon: "play", name: "Try it", descriptor: "Test wallet and USDC" },
-    { href: "/exchange", icon: "inbox", name: "Exchange simulator", descriptor: "Credits by memo" },
-    { href: "/recover", icon: "undo", name: "Recover", descriptor: "Resume or return" },
-    { href: "/exit#another-wallet", icon: "link", name: "Any smart wallet", descriptor: "Bring your own" },
-    { href: "/receipt", icon: "activity", name: "Receipts", descriptor: "Three links per exit" },
-    { href: "/try#before", icon: "close", name: "The normal way", descriptor: "See the network refuse" },
+    { href: "/app/carry", icon: "send", name: "Carry", descriptor: "Wallet to exchange" },
+    { href: "/app", icon: "wallet", name: "Wallet", descriptor: "Test wallet and USDC" },
+    { href: "/app/exchange", icon: "inbox", name: "Exchange simulator", descriptor: "Credits by memo" },
+    { href: "/app/receipts#recover", icon: "undo", name: "Recover", descriptor: "Resume or return" },
+    { href: "/app/carry?mode=b", icon: "link", name: "Any smart wallet", descriptor: "Bring your own" },
+    { href: "/app/receipts", icon: "activity", name: "Receipts", descriptor: "Three links per carry" },
+    { href: "/app/carry#normal-way", icon: "close", name: "The normal way", descriptor: "See the network refuse" },
     { href: "/how", icon: "code", name: "How it works", descriptor: "Transactions and keys" },
   ],
 
@@ -108,8 +108,8 @@ export const site = {
   footer: {
     tagline: "From smart wallet to exchange. Memo included.",
     columns: [
-      { title: "Product", links: [{ label: "Exit", href: "/exit" }, { label: "Try it", href: "/try" }, { label: "Recover", href: "/recover" }] },
-      { title: "Testnet", links: [{ label: "Exchange simulator", href: "/exchange" }, { label: "How it works", href: "/how" }, { label: "Receipts", href: "/receipt" }] },
+      { title: "App", links: [{ label: "Wallet", href: "/app" }, { label: "Carry", href: "/app/carry" }, { label: "Receipts", href: "/app/receipts" }] },
+      { title: "Testnet", links: [{ label: "Exchange simulator", href: "/app/exchange" }, { label: "How it works", href: "/how" }, { label: "Recover a carry", href: "/app/receipts#recover" }] },
       { title: "Network", links: [{ label: "Stellar", href: "https://stellar.org" }, { label: "Smart wallets", href: "https://developers.stellar.org/docs/build/apps/smart-wallets" }, { label: "Stellar Expert", href: "https://stellar.expert/explorer/testnet" }] },
     ],
     badges: [

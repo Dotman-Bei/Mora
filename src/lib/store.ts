@@ -58,6 +58,18 @@ export const store = {
   pending: (g: string) => read<PendingExit>(`portaj:pending:${g}`),
   setPending: (p: PendingExit) => write(`portaj:pending:${p.account}`, p),
   clearPending: (g: string) => write(`portaj:pending:${g}`, null),
+  /** Every interrupted carry this browser knows of, newest first. */
+  pendings: (): PendingExit[] => {
+    try {
+      return Object.keys(window.localStorage)
+        .filter((k) => k.startsWith("portaj:pending:"))
+        .map((k) => read<PendingExit>(k))
+        .filter((p): p is PendingExit => !!p)
+        .sort((a, b) => b.startedAt - a.startedAt);
+    } catch {
+      return [];
+    }
+  },
 
   receipts: () => read<Receipt[]>("portaj:receipts") ?? [],
   addReceipt: (r: Receipt) => write("portaj:receipts", [r, ...(read<Receipt[]>("portaj:receipts") ?? [])].slice(0, 20)),

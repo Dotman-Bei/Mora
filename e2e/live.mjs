@@ -97,23 +97,26 @@ await check("landing renders every section", async () => {
 });
 
 // 2 ------------------------------------------------------------------------
-await check("try: create a test smart wallet with a passkey", async () => {
-  await page.goto(`${BASE}/try`, { waitUntil: "load" });
+await check("wallet: create a test smart wallet with a passkey", async () => {
+  await page.goto(`${BASE}/app`, { waitUntil: "load" });
   await ready();
-  await page.getByRole("button", { name: "Create a test smart wallet" }).click();
+  await page.getByRole("button", { name: "Create test wallet" }).click();
   const link = page.locator("a", { hasText: /^C[A-Z2-7]{55}$/ }).first();
   await link.waitFor({ timeout: 90_000 });
   wallet = (await link.textContent()).trim();
   return `${wallet} · ${await prompts()} prompts`;
 });
 
-await check("try: get test USDC", async () => {
+await check("wallet: get test USDC", async () => {
   await page.getByRole("button", { name: "Get test USDC" }).click();
-  await page.getByTestId("try-balance").filter({ hasText: /25\.0000000/ }).waitFor({ timeout: 90_000 });
+  await page.getByTestId("wallet-usdc").filter({ hasText: /25\.0000000/ }).waitFor({ timeout: 90_000 });
 });
 
-await check("try: the normal way is rejected by the network", async () => {
-  memo = await page.getByLabel("Memo (ID) from the simulator").inputValue();
+await check("carry: the normal way is rejected by the network", async () => {
+  await page.goto(`${BASE}/app/carry`, { waitUntil: "load" });
+  await ready();
+  await page.getByRole("button", { name: /Use the exchange simulator/ }).click();
+  memo = await page.locator('input[name="memo"]').inputValue();
   await page.getByTestId("try-normal").click();
   const r = page.getByTestId("before-result");
   await r.waitFor({ timeout: 60_000 });
@@ -122,15 +125,14 @@ await check("try: the normal way is rejected by the network", async () => {
   return "simulate: memo refused · send: txMalformed (-16)";
 });
 
-await check("try: without the memo it lands but isn't credited", async () => {
-  await page.getByLabel("Amount (USDC)").fill("1");
+await check("carry: without the memo it lands but isn't credited", async () => {
   await page.getByRole("button", { name: "Send without the memo" }).click();
   await page.getByRole("link", { name: "It landed on chain" }).waitFor({ timeout: 90_000 });
 });
 
 // 3 ------------------------------------------------------------------------
-await check("exit: first exit sets up the account and pays with the memo", async () => {
-  await page.goto(`${BASE}/exit?to=${cfg.simulatorDeposit}&memoType=id&memo=${memo}&amount=5`, { waitUntil: "load" });
+await check("carry: first carry sets up the account and pays with the memo", async () => {
+  await page.goto(`${BASE}/app/carry?to=${cfg.simulatorDeposit}&memoType=id&memo=${memo}&amount=5`, { waitUntil: "load" });
   await ready();
   await page.getByTestId("wallet-balance").filter({ hasText: /USDC/ }).waitFor({ timeout: 30_000 });
   await page.getByText("Memo required (SEP-29)").waitFor({ timeout: 20_000 });
@@ -142,11 +144,11 @@ await check("exit: first exit sets up the account and pays with the memo", async
   await page.getByTestId("send").click();
   await page.getByTestId("receipt").waitFor({ timeout: 120_000 });
   const xlm = await page.getByTestId("exit-xlm").filter({ hasText: /XLM/ }).textContent({ timeout: 30_000 });
-  if (!/^0\.0000000 XLM$/.test(xlm.trim())) throw new Error(`exit account holds ${xlm}`);
+  if (!/^0\.0000000 XLM$/.test(xlm.trim())) throw new Error(`transit account holds ${xlm}`);
   return `${exitAccount} · ${(await prompts()) - before} prompt to send · 0 XLM`;
 });
 
-await check("exit: the exit account holds 0 XLM, 0 USDC, reserves sponsored", async () => {
+await check("carry: the transit account holds 0 XLM, 0 USDC, reserves sponsored", async () => {
   const a = await horizon.loadAccount(exitAccount);
   const native = a.balances.find((b) => b.asset_type === "native");
   const usdc = a.balances.find((b) => b.asset_code === "USDC");
@@ -156,13 +158,13 @@ await check("exit: the exit account holds 0 XLM, 0 USDC, reserves sponsored", as
 });
 
 await check("simulator credits the memo, not the contract transfer", async () => {
-  await page.goto(`${BASE}/exchange?memo=${memo}`, { waitUntil: "load" });
+  await page.goto(`${BASE}/app/exchange?memo=${memo}`, { waitUntil: "load" });
   await page.getByTestId("credited").getByText(`ID ${memo}`).waitFor({ timeout: 30_000 });
   await page.getByTestId("uncredited").getByText(/Contract transfer/).first().waitFor({ timeout: 30_000 });
 });
 
-await check("exit: a returning exit takes one passkey prompt", async () => {
-  await page.goto(`${BASE}/exit?to=${cfg.simulatorDeposit}&memoType=id&memo=${memo}&amount=2`, { waitUntil: "load" });
+await check("carry: a returning carry takes one passkey prompt", async () => {
+  await page.goto(`${BASE}/app/carry?to=${cfg.simulatorDeposit}&memoType=id&memo=${memo}&amount=2`, { waitUntil: "load" });
   await ready();
   await page.getByTestId("wallet-balance").filter({ hasText: /USDC/ }).waitFor({ timeout: 30_000 });
   const before = await prompts();
@@ -175,8 +177,8 @@ await check("exit: a returning exit takes one passkey prompt", async () => {
 });
 
 // 4 ------------------------------------------------------------------------
-await check("exit: another wallet (Mode B) pays out when USDC arrives", async () => {
-  await page.goto(`${BASE}/exit?to=${cfg.simulatorDeposit}&memoType=id&memo=${memo}&amount=1.5&mode=b`, { waitUntil: "load" });
+await check("carry: another wallet (Mode B) pays out when USDC arrives", async () => {
+  await page.goto(`${BASE}/app/carry?to=${cfg.simulatorDeposit}&memoType=id&memo=${memo}&amount=1.5&mode=b`, { waitUntil: "load" });
   await ready();
   await page.getByRole("button", { name: "Continue with passkey" }).click();
   const g = (await page.getByTestId("exit-account").textContent({ timeout: 60_000 })).trim();
@@ -185,14 +187,14 @@ await check("exit: another wallet (Mode B) pays out when USDC arrives", async ()
   await page.getByText(/Send exactly 1\.5000000 USDC/).waitFor();
   await payFromOutside(g, "1.5");
   await page.getByTestId("receipt").waitFor({ timeout: 120_000 });
-  return "same passkey, same exit account";
+  return "same passkey, same transit account";
 });
 
-await check("recover: return USDC left in the exit account", async () => {
+await check("recover: return USDC left in the transit account", async () => {
   await payFromOutside(exitAccount, "0.75");
-  await page.goto(`${BASE}/recover`, { waitUntil: "load" });
+  await page.goto(`${BASE}/app/receipts`, { waitUntil: "load" });
   await ready();
-  // The exit account is still unlocked in this tab's session after Mode B? A reload clears it: sign in.
+  // The transit account is still unlocked in this tab's session after Mode B? A reload clears it: sign in.
   const signIn = page.getByRole("button", { name: "Sign in with passkey" }).last();
   if (await signIn.isVisible().catch(() => false)) await signIn.click();
   await page.getByRole("heading", { name: "Return to my wallet" }).waitFor({ timeout: 60_000 });
@@ -201,31 +203,31 @@ await check("recover: return USDC left in the exit account", async () => {
   await page.getByText("Returned to your wallet").waitFor({ timeout: 120_000 });
 });
 
-await check("recover: resume an interrupted exit", async () => {
+await check("recover: resume an interrupted carry", async () => {
   await payFromOutside(exitAccount, "0.5");
   await page.reload({ waitUntil: "load" });
   await ready();
   await page.getByRole("button", { name: "Sign in with passkey" }).last().click();
-  await page.getByRole("heading", { name: "Resume exit" }).waitFor({ timeout: 60_000 });
+  await page.getByRole("heading", { name: "Resume carry" }).waitFor({ timeout: 60_000 });
   await page.getByLabel("Exchange deposit address").fill(cfg.simulatorDeposit);
   await page.getByLabel("Memo", { exact: true }).fill(memo);
-  await page.getByRole("button", { name: "Resume exit" }).click();
-  await page.getByText("Exit finished").waitFor({ timeout: 120_000 });
+  await page.getByRole("button", { name: "Resume carry" }).click();
+  await page.getByText("Carry finished").waitFor({ timeout: 120_000 });
 });
 
-await check("exit: blocks a missing memo for a memo-required address", async () => {
-  await page.goto(`${BASE}/exit?to=${cfg.simulatorDeposit}&memoType=none&amount=1`, { waitUntil: "load" });
+await check("carry: blocks a missing memo for a memo-required address", async () => {
+  await page.goto(`${BASE}/app/carry?to=${cfg.simulatorDeposit}&memoType=none&amount=1`, { waitUntil: "load" });
   await page.getByText(/This exchange requires a memo/).waitFor({ timeout: 30_000 });
   if (await page.getByRole("button", { name: "Continue with passkey" }).isEnabled()) throw new Error("not blocked");
 });
 
-await check("exit: refuses a contract address as destination", async () => {
+await check("carry: refuses a contract address as destination", async () => {
   await page.getByLabel(/Exchange deposit address/).fill(wallet);
   await page.getByText(/That is a contract/).waitFor({ timeout: 10_000 });
 });
 
 await check("receipt and how pages", async () => {
-  await page.goto(`${BASE}/receipt`, { waitUntil: "load" });
+  await page.goto(`${BASE}/app/receipts`, { waitUntil: "load" });
   await page.getByText(/USDC/).first().waitFor({ timeout: 15_000 });
   await page.goto(`${BASE}/how`, { waitUntil: "load" });
   await page.getByText(cfg.sponsor).first().waitFor();

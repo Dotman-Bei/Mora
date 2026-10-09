@@ -8,17 +8,34 @@ import { getAccount, type AccountState } from "@/lib/horizon";
 import { CopyButton, TxLink } from "./share";
 import { Eyebrow } from "./ui";
 
-// Building blocks shared by the Exit, Try it, Recover and Receipt screens.
+// Building blocks shared by the app's screens: Wallet, Carry, Receipts, Exchange.
 
-export function Page({ title, intro, children }: { title: ReactNode; intro?: ReactNode; children: ReactNode }) {
+/** One app screen. The top padding clears the app header (two rows on phones). */
+export function Page({ title, intro, aside, wide = false, children }: { title: ReactNode; intro?: ReactNode; aside?: ReactNode; wide?: boolean; children: ReactNode }) {
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-10 pb-24 pt-28 sm:pt-32">
-      <header className="space-y-3">
-        <h1 className="font-serif text-3xl sm:text-4xl">{title}</h1>
-        {intro ? <p className="text-sm text-muted-foreground">{intro}</p> : null}
+    <div className={`mx-auto w-full space-y-10 pb-24 pt-36 md:pt-28 ${wide ? "max-w-6xl" : "max-w-3xl"}`}>
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="max-w-2xl space-y-3">
+          <h1 className="font-serif text-3xl sm:text-4xl">{title}</h1>
+          {intro ? <p className="text-sm text-muted-foreground">{intro}</p> : null}
+        </div>
+        {aside ? <div className="shrink-0">{aside}</div> : null}
       </header>
       {children}
     </div>
+  );
+}
+
+/** A titled block inside a screen, separated by a hairline. */
+export function Panel({ title, eyebrow, id, children, className = "" }: { title: ReactNode; eyebrow?: ReactNode; id?: string; children: ReactNode; className?: string }) {
+  return (
+    <section id={id} className={`scroll-mt-36 space-y-4 border-t border-border pt-8 md:scroll-mt-28 ${className}`}>
+      <div className="space-y-1">
+        {eyebrow ? <Eyebrow>{eyebrow}</Eyebrow> : null}
+        <h2 className="text-lg text-foreground">{title}</h2>
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -118,8 +135,8 @@ export function useAccount(id: string | null | undefined, pollMs = 0) {
   return { state, error, refresh: () => setTick((x) => x + 1) };
 }
 
-/** The exit account's live state (FR-2.3, FR-6.2). */
-export function ExitAccountCard({ account, state }: { account: string; state: AccountState | null }) {
+/** The transit account's live state (FR-2.3, FR-6.2). */
+export function TransitAccountCard({ account, state }: { account: string; state: AccountState | null }) {
   const sponsored = state?.sponsor === SPONSOR;
   const rows: [string, ReactNode][] = state
     ? [
@@ -133,7 +150,7 @@ export function ExitAccountCard({ account, state }: { account: string; state: Ac
   return (
     <div className="border border-border">
       <div className="space-y-1.5 border-b border-border p-4">
-        <Eyebrow>Your exit account</Eyebrow>
+        <Eyebrow>Your transit account</Eyebrow>
         <div className="flex flex-wrap items-center gap-2">
           <a href={accountUrl(account)} target="_blank" rel="noreferrer" className="break-all font-mono text-sm text-foreground underline-offset-4 hover:underline" data-testid="exit-account">
             {account}
@@ -167,23 +184,23 @@ export function receiptUrl(r: ReceiptData) {
   const q = new URLSearchParams({ g: r.account, to: r.destination, memo: r.memoLabel, amount: r.amount, out: r.outHash });
   if (r.inHash) q.set("in", r.inHash);
   if (r.setupHash) q.set("setup", r.setupHash);
-  return `/receipt?${q}`;
+  return `/app/receipts?${q}`;
 }
 
-/** FR-6: three explorer links, the exit account's 0 XLM and sponsor, the memo as sent. */
+/** FR-6: three explorer links, the transit account's 0 XLM and sponsor, the memo as sent. */
 export function Receipt({ r }: { r: ReceiptData }) {
   const { state } = useAccount(r.account);
   const links: [string, string | undefined][] = [
-    ["Setup · exit account created, reserves sponsored", r.setupHash],
-    ["Transfer in · smart wallet → exit account", r.inHash],
-    ["Payment out · exit account → exchange, with memo", r.outHash],
+    ["Setup · transit account created, reserves sponsored", r.setupHash],
+    ["Transfer in · smart wallet → transit account", r.inHash],
+    ["Payment out · transit account → exchange, with memo", r.outHash],
   ];
   return (
     <div className="space-y-6" data-testid="receipt">
       <div className="grid border border-border sm:grid-cols-3">
         <Stat label="Sent" value={`${r.amount} USDC`} />
         <Stat label="Memo as sent" value={r.memoLabel} />
-        <Stat label="Your exit account holds" value={state ? `${formatUsdc(state.nativeStroops)} XLM` : "…"} testId="exit-xlm" />
+        <Stat label="Your transit account holds" value={state ? `${formatUsdc(state.nativeStroops)} XLM` : "…"} testId="exit-xlm" />
       </div>
       <ul className="border border-border">
         {links.map(([label, hash]) => (
@@ -198,12 +215,12 @@ export function Receipt({ r }: { r: ReceiptData }) {
       </ul>
       <div className="grid gap-6 sm:grid-cols-2">
         <AddressLine label="Exchange address" address={r.destination} copy={false} />
-        <AddressLine label="Exit account" address={r.account} copy={false} />
+        <AddressLine label="Transit account" address={r.account} copy={false} />
       </div>
       <p className="text-xs text-muted-foreground">
         {state?.sponsor === SPONSOR
-          ? `Reserves sponsored by Portaj (${short(SPONSOR)}). USDC left in the exit account: ${state.usdc ? formatUsdc(state.usdc.stroops) : "0"}. Every fee was paid by a fee bump.`
-          : "Reading the exit account…"}
+          ? `Reserves sponsored by Portaj (${short(SPONSOR)}). USDC left in the transit account: ${state.usdc ? formatUsdc(state.usdc.stroops) : "0"}. Every fee was paid by a fee bump.`
+          : "Reading the transit account…"}
       </p>
     </div>
   );
