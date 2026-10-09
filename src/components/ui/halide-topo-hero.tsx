@@ -22,7 +22,6 @@ import { cn } from "@/lib/utils";
 const syncopate = Syncopate({ weight: "700", subsets: ["latin"], display: "swap" });
 
 export interface HalideTopoHeroProps {
-  brand: string;
   readouts: [string, string];
   /** One entry per line on wide screens; phones let it flow. */
   title: string[];
@@ -31,7 +30,7 @@ export interface HalideTopoHeroProps {
   className?: string;
 }
 
-export function HalideTopoHero({ brand, readouts, title, footnote, cta, className }: HalideTopoHeroProps) {
+export function HalideTopoHero({ readouts, title, footnote, cta, className }: HalideTopoHeroProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const layersRef = useRef<Array<HTMLDivElement | null>>([]);
 
@@ -200,8 +199,8 @@ export function HalideTopoHero({ brand, readouts, title, footnote, cta, classNam
         <div className="halide-grain" style={{ filter: "url(#halide-grain)" }} aria-hidden />
 
         <div className="interface-grid">
-          <div style={{ fontWeight: 700 }}>{brand}</div>
-          <div style={{ textAlign: "right", fontFamily: "monospace", color: "var(--accent)", fontSize: "0.7rem" }}>
+          {/* The site header already carries the name, so the hero has no brand mark. */}
+          <div style={{ gridColumn: 2, textAlign: "right", fontFamily: "monospace", color: "var(--accent)", fontSize: "0.7rem" }}>
             <div>{readouts[0]}</div>
             <div>{readouts[1]}</div>
           </div>

@@ -10,7 +10,6 @@ export const site = {
   description: "Send USDC from your passkey wallet to any exchange. No XLM. No seed phrase.",
 
   hero: {
-    brand: "PORTAJ",
     readouts: ["NETWORK: STELLAR TESTNET", "XLM HELD BY YOU: 0"] as [string, string],
     title: ["The exit route", "for Stellar", "smart wallets."],
     footnote: ["[ PASSKEY · MEMO · NO XLM ]", "USDC FROM YOUR STELLAR SMART WALLET, DELIVERED TO ANY EXCHANGE WITH ITS MEMO."] as [string, string],

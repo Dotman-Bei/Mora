@@ -13,7 +13,6 @@ export function Hero() {
   return (
     <div className="-mx-4">
       <HalideTopoHero
-        brand={h.brand}
         readouts={h.readouts}
         title={[...h.title]}
         footnote={h.footnote}
