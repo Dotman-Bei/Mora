@@ -85,7 +85,7 @@ function AccountAnimation({ reduced, onComplete }: AnimProps) {
         <span className="text-sm text-foreground">{f >= 1 ? "Passkey confirmed" : "Waiting for your passkey…"}</span>
       </div>
       <div className="space-y-1 border-b border-border px-4 py-3">
-        <p className="text-xs text-muted-foreground">Your exit account</p>
+        <p className="text-xs text-muted-foreground">Your transit account</p>
         <p className="font-mono text-sm text-foreground">{f >= 2 ? <span className="animate-fade-in-blur">GBX4…P2QD</span> : "—"}</p>
       </div>
       <ul>
@@ -102,7 +102,7 @@ function AccountAnimation({ reduced, onComplete }: AnimProps) {
 
 function SendAnimation({ reduced, onComplete }: AnimProps) {
   const f = useScript(6, 700, reduced, onComplete);
-  const steps = ["Set up exit account", "Wallet → exit account", "Exit account → exchange, memo 4417 2290"];
+  const steps = ["Set up transit account", "Wallet → transit account", "Transit account → exchange, memo 4417 2290"];
   return (
     <div className="w-full max-w-md border border-border bg-background">
       <ul>

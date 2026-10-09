@@ -15,7 +15,7 @@ const FLOW = `1. You paste the exchange address + memo and sign in with a passke
 6. Receipt: three explorer links; G holds 0 XLM; its reserves show the sponsor`;
 
 const TXS: [string, string, string][] = [
-  ["tx1 · setup (first exit only)", "Sponsor", "beginSponsoringFutureReserves(G) · createAccount(G, 0) · changeTrust(USDC) from G · endSponsoringFutureReserves from G. Signed by the sponsor and by G."],
+  ["tx1 · setup (first carry only)", "Sponsor", "beginSponsoringFutureReserves(G) · createAccount(G, 0) · changeTrust(USDC) from G · endSponsoringFutureReserves from G. Signed by the sponsor and by G."],
   ["tx2 · transfer in", "Sponsor (relay)", "One invokeHostFunction: USDC SAC transfer(C, G, amount). Your passkey signs the wallet's auth entry. No memo: the network forbids it here."],
   ["tx3 · payment out", "G, fee-bumped by the sponsor", "One payment(USDC, amount) to the exchange, memo attached (ID or text). G signs the inner transaction; the sponsor's fee bump pays the fee."],
   ["tx4 · return (recovery)", "G, fee-bumped by the sponsor", "SAC transfer(G, C, balance) back to the smart wallet, or a plain USDC payment to a G wallet."],
@@ -25,7 +25,7 @@ const FAILURES: [string, string][] = [
   ["PRF unsupported", "A one-time key held in the tab. You save a recovery file before any money moves, and keep the page open."],
   ["Sponsor low on funds or rate-limited", "A plain message. Nothing moved."],
   ["tx1 or tx2 fails", "Nothing moved. Try again."],
-  ["tx2 lands, tx3 fails", "USDC is in your exit account. Resume the exit, or return it to your wallet."],
+  ["tx2 lands, tx3 fails", "USDC is in your transit account. Resume the carry, or return it to your wallet."],
   ["Exchange has no USDC trustline", "Blocked before you sign."],
   ["Memo required but missing (SEP-29)", "Blocked before you sign."],
   ["Look-alike USDC", "Only Circle's issuer is accepted."],
@@ -44,7 +44,7 @@ export default function HowPage() {
 
       <Block title="One flow">
         <pre className="overflow-x-auto border border-border bg-secondary p-4 font-mono text-xs leading-relaxed text-foreground">{FLOW}</pre>
-        <p className="text-sm text-muted-foreground">First exit: three transactions. After that: two. USDC sits in your exit account for about one ledger. Portaj never holds your keys or your money; the only server key is the sponsor&apos;s.</p>
+        <p className="text-sm text-muted-foreground">First carry: three transactions. After that: two. USDC sits in your transit account for about one ledger. Portaj never holds your keys or your money; the only server key is the sponsor&apos;s.</p>
       </Block>
 
       <Block title="Transactions">
@@ -64,7 +64,7 @@ export default function HowPage() {
         </p>
       </Block>
 
-      <Block title="Your exit account's key">
+      <Block title="Your transit account's key">
         <pre className="overflow-x-auto border border-border bg-secondary p-4 font-mono text-xs leading-relaxed text-foreground">{`salt  = SHA-256("portaj:stellar:g-account:v1")      // WebAuthn prf.eval.first
 seed  = HKDF-SHA256(ikm  = prf.results.first,
                     salt = "portaj",
@@ -72,7 +72,7 @@ seed  = HKDF-SHA256(ikm  = prf.results.first,
                     len  = 32)
 G     = Keypair.fromRawEd25519Seed(seed)`}</pre>
         <p className="text-sm text-muted-foreground">
-          Same passkey, same G, every time. Testnet and mainnet give different accounts. The seed is computed in your browser and never stored or sent. Every passkey prompt on Portaj asks for the PRF value, so the prompt that signs the transfer in also unlocks the key that signs the payment out: one prompt per exit once your account exists.
+          Same passkey, same G, every time. Testnet and mainnet give different accounts. The seed is computed in your browser and never stored or sent. Every passkey prompt on Portaj asks for the PRF value, so the prompt that signs the transfer in also unlocks the key that signs the payment out: one prompt per carry once your account exists.
         </p>
       </Block>
 
@@ -106,7 +106,7 @@ G     = Keypair.fromRawEd25519Seed(seed)`}</pre>
             On <span className="text-foreground">Carry</span>, &ldquo;Try the normal way&rdquo; returns the network&apos;s own rejection. It matches stellar-core&apos;s{" "}
             <Ext href="https://github.com/stellar/stellar-core/blob/ba6a4e6e322a8069b85bdf48a35d971a2d72cc81/src/transactions/TransactionFrame.cpp">validateSorobanMemo</Ext> rule.
           </li>
-          <li>On stellar.expert, your exit account shows 0 XLM, with the account and trustline reserves sponsored by the address above.</li>
+          <li>On stellar.expert, your transit account shows 0 XLM, with the account and trustline reserves sponsored by the address above.</li>
           <li>The payment out carries the memo, goes to the deposit address, and its fee is paid by a fee bump.</li>
           <li>The exchange simulator credits it under your memo. A memo-less or contract transfer shows up as not credited.</li>
         </ol>
@@ -121,7 +121,7 @@ G     = Keypair.fromRawEd25519Seed(seed)`}</pre>
             A PRF-derived key is a signing key for a transit account that holds funds for one ledger, not an encryption key for data.{" "}
             <Ext href="https://lilting.ch/en/articles/passkeys-prf-extension-encryption-risk">The usual warning</Ext> is about the second.
           </li>
-          <li>Exits from your own smart wallet on another site (Another wallet) need you to send the USDC to your exit account yourself.</li>
+          <li>Carries from your own smart wallet on another site (Another wallet) need you to send the USDC to your transit account yourself.</li>
         </ul>
       </Block>
 

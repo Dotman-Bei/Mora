@@ -24,7 +24,7 @@ export const site = {
   walls: [
     { status: "returned", title: "No memo on a contract call", body: "A transfer out of a smart wallet is a contract call, and the network rejects any memo on it. Portaj sends the last leg as a classic payment, memo attached." },
     { status: "waiting", title: "Exchanges don't credit contract transfers", body: "SDF's docs say it plainly. Portaj's final payment is the kind exchanges already credit: a classic USDC payment with the memo." },
-    { status: "delivered", title: "No XLM for a classic account", body: "Your exit account is created with sponsored reserves and every fee is a fee bump. It holds 0 XLM, before and after." },
+    { status: "delivered", title: "No XLM for a classic account", body: "Your transit account is created with sponsored reserves and every fee is a fee bump. It holds 0 XLM, before and after." },
   ],
 
   steps: [
@@ -35,12 +35,12 @@ export const site = {
     },
     {
       title: "Sign once with your passkey",
-      subtitle: "The same passkey derives your own exit account in the browser. First time, Portaj sets it up for you: 0 XLM, USDC trustline, reserves paid by Portaj.",
-      mobileSubtitle: "One prompt. Your exit account, set up for you.",
+      subtitle: "The same passkey derives your own transit account in the browser. First time, Portaj sets it up for you: 0 XLM, USDC trustline, reserves paid by Portaj.",
+      mobileSubtitle: "One prompt. Your transit account, set up for you.",
     },
     {
       title: "Your USDC arrives with its memo",
-      subtitle: "Your wallet sends to your exit account, and your exit account pays the exchange in the next ledger. Three explorer links prove each step.",
+      subtitle: "Your wallet sends to your transit account, and your transit account pays the exchange in the next ledger. Three explorer links prove each step.",
       mobileSubtitle: "Credited by memo. Three links to check.",
     },
   ],
@@ -76,11 +76,11 @@ export const site = {
     title: "What Portaj never does",
     subtitle: "The only key on the server is the sponsor's. It pays reserves and fees; it can't move your money.",
     rows: [
-      { title: "Never holds your keys", body: "Your exit account's key is derived from your passkey in the browser and never stored or sent." },
-      { title: "Never holds your funds", body: "USDC sits in your own exit account for one ledger, then leaves with the memo." },
+      { title: "Never holds your keys", body: "Your transit account's key is derived from your passkey in the browser and never stored or sent." },
+      { title: "Never holds your funds", body: "USDC sits in your own transit account for one ledger, then leaves with the memo." },
       { title: "Never asks for XLM", body: "Sponsored reserves create the account; fee bumps pay every transaction. It holds 0 XLM." },
       { title: "Never signs anything else", body: "The sponsor only signs setup, relays transfers into accounts it sponsored, and fee-bumps their payments." },
-      { title: "Never leaves you stuck", body: "If a step fails after your USDC moved, resume the exit or send it back to your wallet." },
+      { title: "Never leaves you stuck", body: "If a step fails after your USDC moved, resume the carry or send it back to your wallet." },
     ],
     link: { label: "Read how it works", href: "/how" },
   },
@@ -101,8 +101,8 @@ export const site = {
 
   audiences: [
     { eyebrow: "For smart-wallet holders", title: "Sell your USDC like anyone else", body: "Paste the exchange's address and memo, sign once. Your deposit is credited the normal way." },
-    { eyebrow: "For any wallet", title: "Bring your own smart wallet", body: "Your wallet lives on another site? Send to your exit account from there; Portaj pays it out with the memo." },
-    { eyebrow: "For judges and builders", title: "Check every step yourself", body: "Create a test wallet, get test USDC, exit to the simulator, and open three explorer links." },
+    { eyebrow: "For any wallet", title: "Bring your own smart wallet", body: "Your wallet lives on another site? Send to your transit account from there; Portaj pays it out with the memo." },
+    { eyebrow: "For judges and builders", title: "Check every step yourself", body: "Create a test wallet, get test USDC, carry it to the simulator, and open three explorer links." },
   ],
 
   footer: {
