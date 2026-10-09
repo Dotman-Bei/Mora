@@ -4,17 +4,10 @@ import { Buffer } from "buffer";
 // PRD §10: passkey PRF output → HKDF-SHA256 → ed25519 seed → the user's G.
 // Runs in the browser; the seed is never stored or sent anywhere (FR-2.2).
 
+export { PRF_LABEL, prfSalt } from "./prf";
+
 const enc = new TextEncoder();
 const hex = (b: ArrayBuffer) => [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, "0")).join("");
-
-/** Fixed per network family; never per transaction (§10.1). */
-export const PRF_LABEL = "portaj:stellar:g-account:v1";
-
-let saltCache: Promise<Uint8Array> | null = null;
-export function prfSalt(): Promise<Uint8Array> {
-  saltCache ??= crypto.subtle.digest("SHA-256", enc.encode(PRF_LABEL)).then((b) => new Uint8Array(b));
-  return saltCache;
-}
 
 /** seed = HKDF-SHA256(ikm = prf.first, salt = "portaj", info = "stellar-ed25519-seed:" + sha256(passphrase)) */
 export async function deriveExitSeed(prfFirst: BufferSource, networkPassphrase: string): Promise<Uint8Array> {

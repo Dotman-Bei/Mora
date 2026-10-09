@@ -1,6 +1,6 @@
 "use client";
 
-import { prfSalt } from "./derive";
+import { prfSalt } from "./prf";
 
 // Every WebAuthn ceremony on Portaj asks for the PRF extension with the fixed
 // salt (§10.1). Wrapping navigator.credentials once means passkey-kit's own
