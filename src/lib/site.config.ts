@@ -5,7 +5,7 @@
 export const site = {
   name: "Portaj",
   wordmark: "portaj",
-  url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://mora-chi.vercel.app",
+  url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://portaj.vercel.app",
   title: "Portaj · Smart wallet to exchange",
   description: "Send USDC from your passkey wallet to any exchange. No XLM. No seed phrase.",
 
